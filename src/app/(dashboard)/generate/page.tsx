@@ -44,6 +44,7 @@ export default function GeneratePage() {
       const cachedVoiceId = localStorage.getItem(VOICE_CACHE_KEY)
       const match = v.find((x: Voice) => x.id === cachedVoiceId)
       setSelectedVoice(match ?? v[0])
+if (!match) localStorage.removeItem(VOICE_CACHE_KEY)
     }).finally(() => setIsLoadingVoices(false))
 
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
