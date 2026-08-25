@@ -30,7 +30,6 @@ api.interceptors.response.use(
   }
 )
 
-// Auth
 export const authAPI = {
   register: (data: { email: string; password: string; full_name: string }) =>
     api.post("/auth/register", data),
@@ -39,14 +38,12 @@ export const authAPI = {
   me: () => api.get("/auth/me")
 }
 
-// Voices
 export const voicesAPI = {
-  list: () => api.get("/voices/"),
+  list: () => api.get("/generate/voices"),
   get: (id: string) => api.get(`/voices/${id}`),
   preview: (id: string) => api.get(`/voices/${id}/preview`)
 }
 
-// Generate
 export const generateAPI = {
   create: (data: { voice_id: string; text: string; speed?: number }) =>
     api.post("/generate/", data),
@@ -54,7 +51,6 @@ export const generateAPI = {
   history: () => api.get("/generate/history")
 }
 
-// Credits
 export const creditsAPI = {
   balance: () => api.get("/credits/balance"),
   plans: () => api.get("/credits/plans"),
