@@ -3,11 +3,13 @@
 import { useEffect, useState, useRef } from "react"
 import { useAuthStore } from "@/store/authStore"
 import { generateAPI, voicesAPI } from "@/lib/api"
-import { Mic2, Zap, Download, ChevronDown } from "lucide-react"
+import { Mic2, Zap, Download, ChevronDown, Clock } from "lucide-react"
 import Button from "@/components/ui/Button"
 
 const CACHE_KEY = "talkata_draft_text"
 const VOICE_CACHE_KEY = "talkata_draft_voice"
+const POLL_INTERVAL = 3000       // check every 3 seconds
+const POLL_TIMEOUT = 10 * 60 * 1000  // give up after 10 minutes
 
 interface Voice {
   id: string
@@ -28,9 +30,10 @@ export default function GeneratePage() {
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [result, setResult] = useState<{ url: string; credits_used: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const pollRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Restore cached text and voice on mount
   useEffect(() => {
     const cached = localStorage.getItem(CACHE_KEY)
     if (cached) setText(cached)
@@ -42,24 +45,19 @@ export default function GeneratePage() {
       const match = v.find((x: Voice) => x.id === cachedVoiceId)
       setSelectedVoice(match ?? v[0])
     }).finally(() => setIsLoadingVoices(false))
+
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [])
 
-  // Cache text as user types
-  useEffect(() => {
-    localStorage.setItem(CACHE_KEY, text)
-  }, [text])
-
-  // Cache selected voice
+  useEffect(() => { localStorage.setItem(CACHE_KEY, text) }, [text])
   useEffect(() => {
     if (selectedVoice) localStorage.setItem(VOICE_CACHE_KEY, selectedVoice.id)
   }, [selectedVoice])
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
         setVoiceOpen(false)
-      }
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
@@ -67,11 +65,57 @@ export default function GeneratePage() {
 
   const creditCost = Math.max(1, Math.ceil(text.length / 100))
 
+  const pollJobStatus = (jobId: string) => {
+    const startTime = Date.now()
+
+    pollRef.current = setInterval(async () => {
+      // Give up after 10 minutes
+      if (Date.now() - startTime > POLL_TIMEOUT) {
+        clearInterval(pollRef.current!)
+        setIsGenerating(false)
+        setStatusMsg(null)
+        setError("Generation is taking longer than expected. Check History — it may still complete.")
+        return
+      }
+
+      try {
+        const res = await generateAPI.status(jobId)
+        const job = res.data
+
+        if (job.status === "complete") {
+          clearInterval(pollRef.current!)
+          setResult({ url: job.audio_url, credits_used: job.credits_used })
+          setStatusMsg(null)
+          setIsGenerating(false)
+          await fetchUser()
+
+        } else if (job.status === "failed") {
+          clearInterval(pollRef.current!)
+          setError(job.error ?? "Generation failed.")
+          setStatusMsg(null)
+          setIsGenerating(false)
+
+        } else {
+          // Still queued or processing
+          const elapsed = Math.round((Date.now() - startTime) / 1000)
+          setStatusMsg(
+            job.status === "queued"
+              ? "Queued — waiting for worker..."
+              : `Processing your audio... ${elapsed}s`
+          )
+        }
+      } catch {
+        // Network blip — keep polling
+      }
+    }, POLL_INTERVAL)
+  }
+
   const handleGenerate = async () => {
     if (!text.trim() || !selectedVoice) return
     setIsGenerating(true)
     setError(null)
     setResult(null)
+    setStatusMsg("Submitting job...")
 
     try {
       const res = await generateAPI.create({
@@ -79,12 +123,15 @@ export default function GeneratePage() {
         voice_id: selectedVoice.id,
         speed,
       })
-      setResult(res.data)
-      await fetchUser()
+
+      const jobId = res.data.job_id
+      setStatusMsg("Job submitted — processing...")
+      pollJobStatus(jobId)
+
     } catch (err: any) {
       setError(err?.response?.data?.detail ?? "Generation failed. Is the ML worker online?")
-    } finally {
       setIsGenerating(false)
+      setStatusMsg(null)
     }
   }
 
@@ -119,7 +166,6 @@ export default function GeneratePage() {
       </div>
 
       <div className="grid grid-cols-[1fr_340px] gap-6">
-        {/* Left — text input */}
         <div className="flex flex-col gap-4">
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between text-xs text-white/40">
@@ -127,10 +173,7 @@ export default function GeneratePage() {
               <div className="flex items-center gap-3">
                 <span>{text.length} characters</span>
                 {text.length > 0 && (
-                  <button
-                    onClick={clearCache}
-                    className="text-red-400/60 hover:text-red-400 transition-colors"
-                  >
+                  <button onClick={clearCache} className="text-red-400/60 hover:text-red-400 transition-colors">
                     Clear
                   </button>
                 )}
@@ -144,19 +187,28 @@ export default function GeneratePage() {
             />
           </div>
 
+          {/* Status while processing */}
+          {statusMsg && (
+            <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-4 flex items-center gap-3">
+              <Clock className="w-4 h-4 text-violet-400 shrink-0 animate-pulse" />
+              <div>
+                <p className="text-violet-300 text-sm font-medium">{statusMsg}</p>
+                <p className="text-white/40 text-xs mt-0.5">
+                  You can leave this page — check History to find your audio when done.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Result */}
           {result && (
             <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-green-400 text-sm font-medium">Generation complete</span>
-                <span className="text-white/40 text-xs">{result.credits_used} credits used</span>
+                <span className="text-white/40 text-xs">{(result.credits_used * 100).toLocaleString()} characters</span>
               </div>
               <audio controls className="w-full mb-3" src={result.url} />
-              <a
-                href={result.url}
-                download
-                className="flex items-center gap-2 text-violet-400 text-sm hover:text-violet-300 transition-colors"
-              >
+              <a href={result.url} download className="flex items-center gap-2 text-violet-400 text-sm hover:text-violet-300 transition-colors">
                 <Download className="w-4 h-4" />
                 Download audio
               </a>
@@ -180,18 +232,16 @@ export default function GeneratePage() {
           </Button>
         </div>
 
-        {/* Right — controls */}
+        {/* Right panel — unchanged */}
         <div className="flex flex-col gap-4">
-          {/* Credits */}
           <div className="bg-violet-600/10 border border-violet-500/20 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-1">
               <Zap className="w-4 h-4 text-violet-400" />
               <span className="text-violet-400 text-sm">Available Credits</span>
             </div>
-            <p className="text-white text-2xl font-bold">{user?.credits ?? 0}</p>
+            <p className="text-white text-2xl font-bold">{(user?.credits ?? 0) * 100}</p>
           </div>
 
-          {/* Voice selector */}
           <div className="bg-white/5 border border-white/10 rounded-xl p-5">
             <p className="text-white/60 text-sm mb-3">Voice</p>
             <div className="relative" ref={dropdownRef}>
@@ -225,18 +275,13 @@ export default function GeneratePage() {
             </div>
           </div>
 
-          {/* Speed */}
           <div className="bg-white/5 border border-white/10 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-white/60 text-sm">Speed</p>
               <span className="text-white text-sm font-medium">{speed}x</span>
             </div>
             <input
-              type="range"
-              min={0.5}
-              max={2}
-              step={0.1}
-              value={speed}
+              type="range" min={0.5} max={2} step={0.1} value={speed}
               onChange={(e) => setSpeed(parseFloat(e.target.value))}
               className="w-full accent-violet-500"
             />
