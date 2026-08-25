@@ -77,6 +77,7 @@ export default function HistoryPage() {
                 {jobs.map((job) => {
                   const expiring = isExpiringSoon(job.created_at)
                   return (
+                    <>
                     <tr key={job.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4">
                         <p className="text-white text-sm truncate max-w-xs">{job.text}</p>
@@ -123,6 +124,7 @@ export default function HistoryPage() {
                         </td>
                       </tr>
                     )}
+                    </>
                   )
                 })}
               </tbody>
