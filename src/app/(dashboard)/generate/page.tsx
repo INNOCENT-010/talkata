@@ -146,7 +146,7 @@ export default function GeneratePage() {
       <div className="max-w-5xl mx-auto animate-pulse">
         <div className="h-8 w-48 bg-white/10 rounded mb-2" />
         <div className="h-4 w-64 bg-white/5 rounded mb-8" />
-        <div className="grid grid-cols-[1fr_340px] gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-6">
           <div className="h-72 bg-white/5 rounded-xl" />
           <div className="flex flex-col gap-4">
             <div className="h-24 bg-white/5 rounded-xl" />
@@ -165,7 +165,7 @@ export default function GeneratePage() {
         <p className="text-white/50 mt-1">Type your text, pick a voice, and generate</p>
       </div>
 
-      <div className="grid grid-cols-[1fr_340px] gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-6">
         <div className="flex flex-col gap-4">
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between text-xs text-white/40">
