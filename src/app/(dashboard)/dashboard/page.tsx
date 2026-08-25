@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useAuthStore } from "@/store/authStore"
 import { generateAPI } from "@/lib/api"
 import { formatCredits, formatDate } from "@/lib/utils"
-import { Mic2, Zap, History, TrendingUp } from "lucide-react"
+import { Mic2, Zap, History, TrendingUp, Play, Pause } from "lucide-react"
 import Link from "next/link"
 import Button from "@/components/ui/Button"
 
@@ -12,6 +12,29 @@ export default function DashboardPage() {
   const { user } = useAuthStore()
   const [recentJobs, setRecentJobs] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [playingId, setPlayingId] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const handlePlay = (job: any) => {
+    if (!job.audio_url) return
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.src = ""
+    }
+    if (playingId === job.id) {
+      setPlayingId(null)
+      audioRef.current = null
+      return
+    }
+    const audio = new Audio(job.audio_url)
+    audioRef.current = audio
+    audio.play()
+    setPlayingId(job.id)
+    audio.onended = () => {
+      setPlayingId(null)
+      audioRef.current = null
+    }
+  }
 
   useEffect(() => {
     generateAPI.history().then((res) => {
@@ -133,13 +156,15 @@ export default function DashboardPage() {
                     {job.status}
                   </span>
                   {job.audio_url && (
-                    <a
-                      href={job.audio_url}
-                      target="_blank"
-                      className="text-violet-400 text-xs hover:text-violet-300"
+                    <button
+                      onClick={() => handlePlay(job)}
+                      className="text-violet-400 hover:text-violet-300 transition-colors"
                     >
-                      Play
-                    </a>
+                      {playingId === job.id
+                        ? <Pause className="w-4 h-4" />
+                        : <Play className="w-4 h-4" />
+                      }
+                    </button>
                   )}
                 </div>
               </div>

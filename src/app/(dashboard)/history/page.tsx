@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { generateAPI } from "@/lib/api"
 import { formatDate } from "@/lib/utils"
-import { History, Play, Download, Info } from "lucide-react"
+import { History, Play, Pause, Download, Info } from "lucide-react"
 
 interface Job {
   id: string
@@ -19,6 +19,7 @@ export default function HistoryPage() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [playingId, setPlayingId] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     generateAPI.history()
@@ -33,6 +34,54 @@ export default function HistoryPage() {
     return daysLeft <= 5 ? daysLeft : null
   }
 
+  const handlePlay = (job: Job) => {
+    if (!job.audio_url) return
+
+    // Stop current audio
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.src = ""
+    }
+
+    // If clicking same job — stop it
+    if (playingId === job.id) {
+      setPlayingId(null)
+      audioRef.current = null
+      return
+    }
+
+    // Play new audio
+    const audio = new Audio(job.audio_url)
+    audioRef.current = audio
+    audio.play()
+    setPlayingId(job.id)
+    audio.onended = () => {
+      setPlayingId(null)
+      audioRef.current = null
+    }
+  }
+
+  const AudioControls = ({ job }: { job: Job }) => (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => handlePlay(job)}
+        className="flex items-center gap-1 text-violet-400 hover:text-violet-300 transition-colors"
+      >
+        {playingId === job.id
+          ? <Pause className="w-4 h-4" />
+          : <Play className="w-4 h-4" />
+        }
+      </button>
+      <a
+        href={job.audio_url}
+        download
+        className="text-violet-400 hover:text-violet-300 transition-colors"
+      >
+        <Download className="w-4 h-4" />
+      </a>
+    </div>
+  )
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
@@ -40,7 +89,6 @@ export default function HistoryPage() {
         <p className="text-white/50 mt-1">All your previous generations</p>
       </div>
 
-      {/* 30-day notice */}
       <div className="flex items-start gap-3 bg-violet-600/10 border border-violet-500/20 rounded-xl px-5 py-4 mb-6">
         <Info className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
         <p className="text-white/60 text-sm">
@@ -60,7 +108,7 @@ export default function HistoryPage() {
             <History className="w-10 h-10 text-white/20 mx-auto mb-3" />
             <p className="text-white/40">No generations yet</p>
           </div>
-                ) : (
+        ) : (
           <>
             {/* Desktop table */}
             <table className="w-full hidden md:table">
@@ -77,7 +125,6 @@ export default function HistoryPage() {
                 {jobs.map((job) => {
                   const expiring = isExpiringSoon(job.created_at)
                   return (
-                    <>
                     <tr key={job.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4">
                         <p className="text-white text-sm truncate max-w-xs">{job.text}</p>
@@ -93,38 +140,18 @@ export default function HistoryPage() {
                         }`}>{job.status}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-white/60 text-sm">{(job.credits_used).toLocaleString()}</span>
+                        <span className="text-white/60 text-sm">{job.credits_used.toLocaleString()}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-white/60 text-sm">{formatDate(job.created_at)}</span>
                       </td>
                       <td className="px-6 py-4">
-                        {job.audio_url ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setPlayingId(playingId === job.id ? null : job.id)}
-                              className="text-violet-400 hover:text-violet-300"
-                            >
-                              <Play className="w-4 h-4" />
-                            </button>
-                            <a href={job.audio_url} download className="text-violet-400 hover:text-violet-300"><Download className="w-4 h-4" /></a>
-                          </div>
-                        ) : <span className="text-white/20">—</span>}
+                        {job.audio_url
+                          ? <AudioControls job={job} />
+                          : <span className="text-white/20">—</span>
+                        }
                       </td>
                     </tr>
-                    {playingId === job.id && job.audio_url && (
-                      <tr key={`${job.id}-player`} className="bg-white/5">
-                        <td colSpan={5} className="px-6 py-3">
-                          <audio
-                            controls
-                            autoPlay
-                            className="w-full h-10"
-                            src={job.audio_url}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                    </>
                   )
                 })}
               </tbody>
@@ -149,31 +176,10 @@ export default function HistoryPage() {
                     )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-xs text-white/40">
-                        <span>{(job.credits_used).toLocaleString()} chars</span>
+                        <span>{job.credits_used.toLocaleString()} chars</span>
                         <span>{formatDate(job.created_at)}</span>
                       </div>
-                      {job.audio_url && (
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => setPlayingId(playingId === job.id ? null : job.id)}
-                            className="flex items-center gap-1 text-violet-400 text-xs hover:text-violet-300"
-                          >
-                            <Play className="w-3.5 h-3.5" />
-                            {playingId === job.id ? "Hide" : "Play"}
-                          </button>
-                          <a href={job.audio_url} download className="flex items-center gap-1 text-violet-400 text-xs hover:text-violet-300">
-                            <Download className="w-3.5 h-3.5" /> Save
-                          </a>
-                        </div>
-                      )}
-                      {playingId === job.id && job.audio_url && (
-                        <audio
-                          controls
-                          autoPlay
-                          className="w-full mt-2 h-10"
-                          src={job.audio_url}
-                        />
-                      )}
+                      {job.audio_url && <AudioControls job={job} />}
                     </div>
                   </div>
                 )
