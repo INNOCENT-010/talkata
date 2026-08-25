@@ -62,7 +62,7 @@ export default function CreditsPage() {
         </div>
         <div className="flex items-end justify-between">
           <p className="text-white text-3xl font-bold">
-            {((user?.credits ?? 0) * 100).toLocaleString()}
+            {((user?.credits ?? 0) ).toLocaleString()}
             <span className="text-white/40 text-base font-normal ml-2">characters</span>
           </p>
           <div className="text-right">

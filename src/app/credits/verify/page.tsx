@@ -41,7 +41,7 @@ function VerifyContent() {
         <CheckCircle className="w-14 h-14 text-green-400 mx-auto mb-4" />
         <h1 className="text-white text-2xl font-bold mb-2">Payment Successful!</h1>
         <p className="text-white/50 mb-6">
-          {(credits * 100).toLocaleString()} characters added to your account.
+          {(credits ).toLocaleString()} characters added to your account.
         </p>
         <Button onClick={() => router.push("/generate")} className="w-full">
           Start Generating

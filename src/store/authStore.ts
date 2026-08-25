@@ -6,6 +6,7 @@ interface User {
   email: string
   full_name: string
   credits: number
+  is_admin?: boolean  // add this
 }
 
 interface AuthStore {

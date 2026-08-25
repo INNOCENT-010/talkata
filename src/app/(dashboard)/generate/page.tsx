@@ -205,7 +205,7 @@ export default function GeneratePage() {
             <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-green-400 text-sm font-medium">Generation complete</span>
-                <span className="text-white/40 text-xs">{(result.credits_used * 100).toLocaleString()} characters</span>
+                <span className="text-white/40 text-xs">{(result.credits_used ).toLocaleString()} characters</span>
               </div>
               <audio controls className="w-full mb-3" src={result.url} />
               <a href={result.url} download className="flex items-center gap-2 text-violet-400 text-sm hover:text-violet-300 transition-colors">
@@ -228,7 +228,7 @@ export default function GeneratePage() {
             className="w-full"
           >
             <Mic2 className="w-4 h-4" />
-            {isGenerating ? "Generating..." : `Generate — ${creditCost} credits`}
+            {isGenerating ? "Generating..." : `Generate — ${creditCost.toLocaleString()} characters`}
           </Button>
         </div>
 
@@ -239,7 +239,7 @@ export default function GeneratePage() {
               <Zap className="w-4 h-4 text-violet-400" />
               <span className="text-violet-400 text-sm">Available Credits</span>
             </div>
-            <p className="text-white text-2xl font-bold">{(user?.credits ?? 0) * 100}</p>
+            <p className="text-white text-2xl font-bold">{(user?.credits ?? 0) }</p>
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-xl p-5">

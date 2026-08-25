@@ -59,7 +59,7 @@ export default function Sidebar() {
           <span className="text-xs text-violet-400 font-medium">Credits</span>
         </div>
         <p className="text-white font-bold text-lg">
-          {((user?.credits ?? 0) * 100).toLocaleString()}
+          {((user?.credits ?? 0) ).toLocaleString()}
         </p>
       </div>
 

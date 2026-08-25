@@ -99,7 +99,7 @@ export default function HistoryPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-white/60 text-sm">
-                        {(job.credits_used * 100).toLocaleString()}
+                        {(job.credits_used ).toLocaleString()}
                       </span>
                     </td>
                     <td className="px-6 py-4">
