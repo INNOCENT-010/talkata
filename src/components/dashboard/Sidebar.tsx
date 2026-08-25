@@ -54,7 +54,7 @@ export default function Sidebar() {
           <span className="text-xs text-violet-400 font-medium">Credits</span>
         </div>
         <p className="text-white font-bold text-lg">
-          {formatCredits(user?.credits ?? 0)}
+          {((user?.credits ?? 0) * 100).toLocaleString()}
         </p>
       </div>
 
