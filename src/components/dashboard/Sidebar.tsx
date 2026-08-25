@@ -14,7 +14,8 @@ import {
   LogOut,
   Zap,
   Menu,
-  X
+  X,
+  Shield
 } from "lucide-react"
 
 const links = [
@@ -22,6 +23,10 @@ const links = [
   { href: "/generate", label: "Generate", icon: Mic2 },
   { href: "/history", label: "History", icon: History },
   { href: "/credits", label: "Credits", icon: CreditCard },
+]
+
+const adminLinks = [
+  { href: "/admin", label: "Admin", icon: Shield },
 ]
 
 export default function Sidebar() {
@@ -77,6 +82,29 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
+
+      {/* Admin Links */}
+      {user?.is_admin && (
+        <div className="px-4 pb-2">
+          <p className="text-white/20 text-xs font-medium px-3 mb-1">ADMIN</p>
+          {adminLinks.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
+                pathname.startsWith("/admin")
+                  ? "bg-violet-600 text-white"
+                  : "text-white/60 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* User + Logout */}
       <div className="p-4 border-t border-white/10">

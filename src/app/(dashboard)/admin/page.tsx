@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import AdminGuard from "@/components/dashboard/AdminGuard"
-import { Users, Mic2, Zap, TrendingUp, AlertCircle, CheckCircle } from "lucide-react"
+import { Users, Mic2, Zap, TrendingUp, AlertCircle, CheckCircle, DollarSign } from "lucide-react"
 import Link from "next/link"
 import axios from "axios"
 
@@ -15,6 +15,9 @@ interface Stats {
   failed_jobs: number
   total_credits_used: number
   jobs_today: number
+  total_revenue_usd: number
+  today_revenue_usd: number
+  total_transactions: number
 }
 
 export default function AdminPage() {
@@ -36,6 +39,9 @@ export default function AdminPage() {
     { label: "Failed", value: stats.failed_jobs, icon: AlertCircle, color: "text-red-400", bg: "bg-red-600/10 border-red-500/20" },
     { label: "Jobs Today", value: stats.jobs_today, icon: TrendingUp, color: "text-yellow-400", bg: "bg-yellow-600/10 border-yellow-500/20" },
     { label: "Credits Used", value: stats.total_credits_used?.toLocaleString(), icon: Zap, color: "text-orange-400", bg: "bg-orange-600/10 border-orange-500/20" },
+    { label: "Total Revenue", value: `$${stats.total_revenue_usd.toFixed(2)}`, icon: DollarSign, color: "text-emerald-400", bg: "bg-emerald-600/10 border-emerald-500/20" },
+    { label: "Revenue Today", value: `$${stats.today_revenue_usd.toFixed(2)}`, icon: DollarSign, color: "text-emerald-300", bg: "bg-emerald-600/5 border-emerald-500/10" },
+    { label: "Transactions", value: stats.total_transactions, icon: TrendingUp, color: "text-cyan-400", bg: "bg-cyan-600/10 border-cyan-500/20" },
   ] : []
 
   const quickLinks = [

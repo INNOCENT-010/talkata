@@ -48,72 +48,73 @@ export default function CreditsPage() {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
+    <div className="max-w-4xl mx-auto px-4">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Credits</h1>
         <p className="text-white/50 mt-1">Top up your credits to keep generating</p>
       </div>
 
       {/* Current Balance */}
-      <div className="bg-violet-600/10 border border-violet-500/20 rounded-xl p-6 mb-8 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Zap className="w-4 h-4 text-violet-400" />
-            <span className="text-violet-400 text-sm">Current Balance</span>
-          </div>
-          <p className="text-white text-3xl font-bold">
-            {(user?.credits ?? 0).toLocaleString()}
-            <span className="text-white/40 text-lg font-normal ml-2">credits</span>
-          </p>
+      <div className="bg-violet-600/10 border border-violet-500/20 rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Zap className="w-4 h-4 text-violet-400" />
+          <span className="text-violet-400 text-sm">Current Balance</span>
         </div>
-        <div className="text-right">
-          <p className="text-white/40 text-sm">1 credit = 100 characters</p>
-          <p className="text-white/40 text-sm mt-1">Credits valid for 3 months</p>
+        <div className="flex items-end justify-between">
+          <p className="text-white text-3xl font-bold">
+            {((user?.credits ?? 0) * 100).toLocaleString()}
+            <span className="text-white/40 text-base font-normal ml-2">characters</span>
+          </p>
+          <div className="text-right">
+            <p className="text-white/40 text-xs">Valid for 3 months</p>
+          </div>
         </div>
       </div>
 
-      {/* Plans */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      {/* Plans — stacked on mobile, grid on desktop */}
+      <div className="flex flex-col gap-4 mb-6 sm:grid sm:grid-cols-3">
         {plans.map((plan, i) => {
           const meta = PLAN_META[plan.id] ?? PLAN_META[plan.label?.toLowerCase()] ?? { chars: "—", hours: "—" }
+          const isPopular = i === 1
           return (
             <div
               key={plan.id}
-              className={`relative border rounded-xl p-6 flex flex-col gap-4 ${
-                i === 1
+              className={`relative border rounded-xl p-5 flex flex-col gap-3 ${
+                isPopular
                   ? "bg-violet-600/20 border-violet-500/50"
                   : "bg-white/5 border-white/10"
               }`}
             >
-              {i === 1 && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+              {isPopular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-violet-600 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
                   BEST VALUE
                 </div>
               )}
 
-              <div>
+              {/* Plan header — horizontal on mobile */}
+              <div className="flex items-center justify-between sm:block">
                 <h3 className="text-white font-bold text-lg">{plan.label}</h3>
-                <div className="flex items-baseline gap-1 mt-2">
-                  <span className="text-white text-3xl font-bold">${plan.amount_usd}</span>
-                </div>
+                <span className="text-white text-2xl font-bold sm:mt-1 sm:block">
+                  ${plan.amount_usd}
+                </span>
               </div>
 
-              {/* Characters */}
+              {/* Characters + hours */}
               <div className="flex flex-col gap-1 bg-white/5 rounded-lg px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-violet-400 shrink-0" />
-                  <span className="text-white font-bold">{meta.chars} characters</span>
+                  <span className="text-white font-semibold text-sm">{meta.chars} chars</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Mic2 className="w-4 h-4 text-violet-400/60 shrink-0" />
-                  <span className="text-white/50 text-sm">~{meta.hours} hours of audio</span>
+                  <span className="text-white/50 text-xs">~{meta.hours} hours of audio</span>
                 </div>
               </div>
 
               <Button
                 onClick={() => handlePurchase(plan.id)}
                 isLoading={isLoading === plan.id}
-                variant={i === 1 ? "primary" : "secondary"}
+                variant={isPopular ? "primary" : "secondary"}
                 className="w-full"
               >
                 Get Started
@@ -124,9 +125,9 @@ export default function CreditsPage() {
       </div>
 
       {/* Features */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+      <div className="bg-white/5 border border-white/10 rounded-xl p-5">
         <h3 className="text-white font-semibold mb-4">All plans include</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {features.map((feature) => (
             <div key={feature} className="flex items-center gap-2">
               <Check className="w-4 h-4 text-violet-400 shrink-0" />
