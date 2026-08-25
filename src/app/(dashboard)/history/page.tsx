@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { generateAPI } from "@/lib/api"
 import { formatDate } from "@/lib/utils"
-import { History, Play, Pause, Download, Info } from "lucide-react"
+import { History, Play, Pause, Download, Info, Clock } from "lucide-react"
 
 interface Job {
   id: string
@@ -11,21 +12,71 @@ interface Job {
   status: string
   audio_url?: string
   credits_used: number
+  duration_seconds?: number
   created_at: string
-  voice_id: string
+  voice_name?: string
+}
+
+function formatDuration(seconds: number): string {
+  if (!seconds || seconds === 0) return null as any
+  const mins = Math.round(seconds / 60)
+  if (mins < 1) return `${seconds}s`
+  return `${mins} min${mins !== 1 ? "s" : ""}`
 }
 
 export default function HistoryPage() {
+  const searchParams = useSearchParams()
+  const isProcessing = searchParams.get("processing") === "true"
+
   const [jobs, setJobs] = useState<Job[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [playingId, setPlayingId] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const pollRef = useRef<NodeJS.Timeout | null>(null)
+
+  const fetchJobs = async () => {
+    const res = await generateAPI.history()
+    setJobs(res.data.jobs)
+    return res.data.jobs
+  }
 
   useEffect(() => {
-    generateAPI.history()
-      .then((res) => setJobs(res.data.jobs))
-      .finally(() => setIsLoading(false))
+    fetchJobs().finally(() => setIsLoading(false))
+
+    // If came from generate page, start polling for active jobs
+    if (isProcessing) {
+      pollRef.current = setInterval(async () => {
+        const latest = await fetchJobs()
+        const hasActive = latest.some((j: Job) =>
+          j.status === "queued" || j.status === "processing"
+        )
+        if (!hasActive) {
+          clearInterval(pollRef.current!)
+        }
+      }, 3000)
+    }
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
   }, [])
+
+  // Keep polling if there are active jobs
+  useEffect(() => {
+    const hasActive = jobs.some(j => j.status === "queued" || j.status === "processing")
+    if (hasActive && !pollRef.current) {
+      pollRef.current = setInterval(async () => {
+        const latest = await fetchJobs()
+        const stillActive = latest.some((j: Job) =>
+          j.status === "queued" || j.status === "processing"
+        )
+        if (!stillActive) {
+          clearInterval(pollRef.current!)
+          pollRef.current = null
+        }
+      }, 3000)
+    }
+  }, [jobs])
 
   const isExpiringSoon = (dateStr: string) => {
     const created = new Date(dateStr)
@@ -36,21 +87,15 @@ export default function HistoryPage() {
 
   const handlePlay = (job: Job) => {
     if (!job.audio_url) return
-
-    // Stop current audio
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.src = ""
     }
-
-    // If clicking same job — stop it
     if (playingId === job.id) {
       setPlayingId(null)
       audioRef.current = null
       return
     }
-
-    // Play new audio
     const audio = new Audio(job.audio_url)
     audioRef.current = audio
     audio.play()
@@ -61,22 +106,17 @@ export default function HistoryPage() {
     }
   }
 
+  const hasActiveJobs = jobs.some(j => j.status === "queued" || j.status === "processing")
+
   const AudioControls = ({ job }: { job: Job }) => (
     <div className="flex items-center gap-2">
       <button
         onClick={() => handlePlay(job)}
         className="flex items-center gap-1 text-violet-400 hover:text-violet-300 transition-colors"
       >
-        {playingId === job.id
-          ? <Pause className="w-4 h-4" />
-          : <Play className="w-4 h-4" />
-        }
+        {playingId === job.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
       </button>
-      <a
-        href={job.audio_url}
-        download
-        className="text-violet-400 hover:text-violet-300 transition-colors"
-      >
+      <a href={job.audio_url} download className="text-violet-400 hover:text-violet-300">
         <Download className="w-4 h-4" />
       </a>
     </div>
@@ -89,12 +129,22 @@ export default function HistoryPage() {
         <p className="text-white/50 mt-1">All your previous generations</p>
       </div>
 
-      <div className="flex items-start gap-3 bg-violet-600/10 border border-violet-500/20 rounded-xl px-5 py-4 mb-6">
-        <Info className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
-        <p className="text-white/60 text-sm">
-          Generation history and audio files are automatically cleared after{" "}
-          <span className="text-white font-medium">30 days</span> to keep the service fast and free.
-          Download any audio you want to keep.
+      {/* Active job banner */}
+      {hasActiveJobs && (
+        <div className="flex items-center gap-3 bg-violet-600/10 border border-violet-500/30 rounded-xl px-5 py-4 mb-6">
+          <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse shrink-0" />
+          <p className="text-violet-300 text-sm font-medium">
+            Generation in progress — this page updates automatically.
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-xl px-5 py-4 mb-6">
+        <Info className="w-4 h-4 text-white/30 shrink-0 mt-0.5" />
+        <p className="text-white/40 text-sm">
+          History and audio files are cleared after{" "}
+          <span className="text-white/60 font-medium">30 days</span>.
+          Download anything you want to keep.
         </p>
       </div>
 
@@ -116,7 +166,7 @@ export default function HistoryPage() {
                 <tr className="border-b border-white/10">
                   <th className="text-left text-white/40 text-xs font-medium px-6 py-3">TEXT</th>
                   <th className="text-left text-white/40 text-xs font-medium px-6 py-3">STATUS</th>
-                  <th className="text-left text-white/40 text-xs font-medium px-6 py-3">CHARACTERS</th>
+                  <th className="text-left text-white/40 text-xs font-medium px-6 py-3">LENGTH</th>
                   <th className="text-left text-white/40 text-xs font-medium px-6 py-3">DATE</th>
                   <th className="text-left text-white/40 text-xs font-medium px-6 py-3">AUDIO</th>
                 </tr>
@@ -124,6 +174,7 @@ export default function HistoryPage() {
               <tbody>
                 {jobs.map((job) => {
                   const expiring = isExpiringSoon(job.created_at)
+                  const duration = formatDuration(job.duration_seconds ?? 0)
                   return (
                     <tr key={job.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4">
@@ -133,14 +184,26 @@ export default function HistoryPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          job.status === "complete" ? "bg-green-500/10 text-green-400"
-                          : job.status === "failed" ? "bg-red-500/10 text-red-400"
-                          : "bg-yellow-500/10 text-yellow-400"
-                        }`}>{job.status}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            job.status === "complete" ? "bg-green-500/10 text-green-400"
+                            : job.status === "failed" ? "bg-red-500/10 text-red-400"
+                            : "bg-violet-500/10 text-violet-400"
+                          }`}>{job.status}</span>
+                          {(job.status === "queued" || job.status === "processing") && (
+                            <div className="w-3 h-3 border border-violet-400/50 border-t-violet-400 rounded-full animate-spin" />
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-white/60 text-sm">{job.credits_used.toLocaleString()}</span>
+                        {duration ? (
+                          <div className="flex items-center gap-1.5 text-white/60 text-sm">
+                            <Clock className="w-3.5 h-3.5 text-white/30" />
+                            {duration}
+                          </div>
+                        ) : (
+                          <span className="text-white/20">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-white/60 text-sm">{formatDate(job.created_at)}</span>
@@ -161,22 +224,33 @@ export default function HistoryPage() {
             <div className="md:hidden flex flex-col divide-y divide-white/5">
               {jobs.map((job) => {
                 const expiring = isExpiringSoon(job.created_at)
+                const duration = formatDuration(job.duration_seconds ?? 0)
                 return (
                   <div key={job.id} className="p-4 flex flex-col gap-2">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-white text-sm line-clamp-2 flex-1">{job.text}</p>
-                      <span className={`text-xs px-2 py-1 rounded-full shrink-0 ${
-                        job.status === "complete" ? "bg-green-500/10 text-green-400"
-                        : job.status === "failed" ? "bg-red-500/10 text-red-400"
-                        : "bg-yellow-500/10 text-yellow-400"
-                      }`}>{job.status}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          job.status === "complete" ? "bg-green-500/10 text-green-400"
+                          : job.status === "failed" ? "bg-red-500/10 text-red-400"
+                          : "bg-violet-500/10 text-violet-400"
+                        }`}>{job.status}</span>
+                        {(job.status === "queued" || job.status === "processing") && (
+                          <div className="w-3 h-3 border border-violet-400/50 border-t-violet-400 rounded-full animate-spin" />
+                        )}
+                      </div>
                     </div>
                     {expiring !== null && (
                       <p className="text-orange-400 text-xs">Expires in {expiring} day{expiring !== 1 ? "s" : ""}</p>
                     )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-xs text-white/40">
-                        <span>{job.credits_used.toLocaleString()} chars</span>
+                        {duration && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {duration}
+                          </span>
+                        )}
                         <span>{formatDate(job.created_at)}</span>
                       </div>
                       {job.audio_url && <AudioControls job={job} />}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useAuthStore } from "@/store/authStore"
+import { useRouter } from "next/navigation"
 import { generateAPI, voicesAPI } from "@/lib/api"
 import { Mic2, Zap, Download, ChevronDown, Clock } from "lucide-react"
 import Button from "@/components/ui/Button"
@@ -21,6 +22,7 @@ interface Voice {
 
 export default function GeneratePage() {
   const { user, fetchUser } = useAuthStore()
+  const router = useRouter()
   const [text, setText] = useState("")
   const [voices, setVoices] = useState<Voice[]>([])
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null)
@@ -115,20 +117,16 @@ if (!match) localStorage.removeItem(VOICE_CACHE_KEY)
     if (!text.trim() || !selectedVoice) return
     setIsGenerating(true)
     setError(null)
-    setResult(null)
     setStatusMsg("Submitting job...")
 
     try {
-      const res = await generateAPI.create({
+      await generateAPI.create({
         text: text.trim(),
         voice_id: selectedVoice.id,
         speed,
       })
-
-      const jobId = res.data.job_id
-      setStatusMsg("Job submitted — processing...")
-      pollJobStatus(jobId)
-
+      // Redirect immediately — history page will poll
+      router.push("/history?processing=true")
     } catch (err: any) {
       setError(err?.response?.data?.detail ?? "Generation failed. Is the ML worker online?")
       setIsGenerating(false)
