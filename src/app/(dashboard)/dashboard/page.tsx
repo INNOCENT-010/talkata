@@ -63,7 +63,7 @@ export default function DashboardPage() {
               <Icon className={`w-5 h-5 ${color}`} />
               <span className="text-white/60 text-sm">{label}</span>
             </div>
-            <p className="text-white text-2xl font-bold">{value}</p>
+            <p className="text-white text-2xl font-bold truncate">{value}</p>
           </div>
         ))}
       </div>

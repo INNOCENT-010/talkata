@@ -59,79 +59,95 @@ export default function HistoryPage() {
             <History className="w-10 h-10 text-white/20 mx-auto mb-3" />
             <p className="text-white/40">No generations yet</p>
           </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left text-white/40 text-xs font-medium px-6 py-3">TEXT</th>
-                <th className="text-left text-white/40 text-xs font-medium px-6 py-3">STATUS</th>
-                <th className="text-left text-white/40 text-xs font-medium px-6 py-3">CHARACTERS</th>
-                <th className="text-left text-white/40 text-xs font-medium px-6 py-3">DATE</th>
-                <th className="text-left text-white/40 text-xs font-medium px-6 py-3">AUDIO</th>
-              </tr>
-            </thead>
-            <tbody>
+                ) : (
+          <>
+            {/* Desktop table */}
+            <table className="w-full hidden md:table">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="text-left text-white/40 text-xs font-medium px-6 py-3">TEXT</th>
+                  <th className="text-left text-white/40 text-xs font-medium px-6 py-3">STATUS</th>
+                  <th className="text-left text-white/40 text-xs font-medium px-6 py-3">CHARACTERS</th>
+                  <th className="text-left text-white/40 text-xs font-medium px-6 py-3">DATE</th>
+                  <th className="text-left text-white/40 text-xs font-medium px-6 py-3">AUDIO</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.map((job) => {
+                  const expiring = isExpiringSoon(job.created_at)
+                  return (
+                    <tr key={job.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="text-white text-sm truncate max-w-xs">{job.text}</p>
+                        {expiring !== null && (
+                          <p className="text-orange-400 text-xs mt-0.5">Expires in {expiring} day{expiring !== 1 ? "s" : ""}</p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          job.status === "complete" ? "bg-green-500/10 text-green-400"
+                          : job.status === "failed" ? "bg-red-500/10 text-red-400"
+                          : "bg-yellow-500/10 text-yellow-400"
+                        }`}>{job.status}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-white/60 text-sm">{(job.credits_used).toLocaleString()}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-white/60 text-sm">{formatDate(job.created_at)}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {job.audio_url ? (
+                          <div className="flex items-center gap-2">
+                            <a href={job.audio_url} target="_blank" className="text-violet-400 hover:text-violet-300"><Play className="w-4 h-4" /></a>
+                            <a href={job.audio_url} download className="text-violet-400 hover:text-violet-300"><Download className="w-4 h-4" /></a>
+                          </div>
+                        ) : <span className="text-white/20">—</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+
+            {/* Mobile cards */}
+            <div className="md:hidden flex flex-col divide-y divide-white/5">
               {jobs.map((job) => {
                 const expiring = isExpiringSoon(job.created_at)
                 return (
-                  <tr
-                    key={job.id}
-                    className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <p className="text-white text-sm truncate max-w-xs">{job.text}</p>
-                      {expiring !== null && (
-                        <p className="text-orange-400 text-xs mt-0.5">
-                          Expires in {expiring} day{expiring !== 1 ? "s" : ""}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        job.status === "complete"
-                          ? "bg-green-500/10 text-green-400"
-                          : job.status === "failed"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-yellow-500/10 text-yellow-400"
-                      }`}>
-                        {job.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-white/60 text-sm">
-                        {(job.credits_used ).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-white/60 text-sm">{formatDate(job.created_at)}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {job.audio_url ? (
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={job.audio_url}
-                            target="_blank"
-                            className="text-violet-400 hover:text-violet-300 transition-colors"
-                          >
-                            <Play className="w-4 h-4" />
+                  <div key={job.id} className="p-4 flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-white text-sm line-clamp-2 flex-1">{job.text}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full shrink-0 ${
+                        job.status === "complete" ? "bg-green-500/10 text-green-400"
+                        : job.status === "failed" ? "bg-red-500/10 text-red-400"
+                        : "bg-yellow-500/10 text-yellow-400"
+                      }`}>{job.status}</span>
+                    </div>
+                    {expiring !== null && (
+                      <p className="text-orange-400 text-xs">Expires in {expiring} day{expiring !== 1 ? "s" : ""}</p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 text-xs text-white/40">
+                        <span>{(job.credits_used).toLocaleString()} chars</span>
+                        <span>{formatDate(job.created_at)}</span>
+                      </div>
+                      {job.audio_url && (
+                        <div className="flex items-center gap-3">
+                          <a href={job.audio_url} target="_blank" className="flex items-center gap-1 text-violet-400 text-xs hover:text-violet-300">
+                            <Play className="w-3.5 h-3.5" /> Play
                           </a>
-                          <a
-                            href={job.audio_url}
-                            download
-                            className="text-violet-400 hover:text-violet-300 transition-colors"
-                          >
-                            <Download className="w-4 h-4" />
+                          <a href={job.audio_url} download className="flex items-center gap-1 text-violet-400 text-xs hover:text-violet-300">
+                            <Download className="w-3.5 h-3.5" /> Save
                           </a>
                         </div>
-                      ) : (
-                        <span className="text-white/20 text-sm">—</span>
                       )}
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 )
               })}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
     </div>

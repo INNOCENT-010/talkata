@@ -72,7 +72,7 @@ export default function AdminPage() {
                   <Icon className={`w-4 h-4 ${color}`} />
                   <span className="text-white/50 text-sm">{label}</span>
                 </div>
-                <p className="text-white text-2xl font-bold">{value}</p>
+                <p className="text-white text-2xl font-bold truncate">{value}</p>
               </div>
             ))}
           </div>
