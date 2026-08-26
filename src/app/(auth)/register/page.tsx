@@ -37,9 +37,9 @@ export default function RegisterPage() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="mb-2">
-        <h2 className="text-xl font-bold text-white">Create account</h2>
-        <p className="text-white/50 text-sm mt-1">Start with 1,000 free credits</p>
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-white mb-2">Create account</h2>
+        <p className="text-white/50 text-sm">Start with 1,000 free credits — no card needed</p>
       </div>
 
       {error && (

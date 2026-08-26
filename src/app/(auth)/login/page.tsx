@@ -41,9 +41,9 @@ export default function LoginPage() {
       autoComplete="on"
       className="flex flex-col gap-4"
     >
-      <div className="mb-2">
-        <h2 className="text-xl font-bold text-white">Welcome back</h2>
-        <p className="text-white/50 text-sm mt-1">Sign in to your account</p>
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-white mb-2">Welcome back</h2>
+        <p className="text-white/50 text-sm">Sign in to continue to Talkata</p>
       </div>
 
       {error && (
