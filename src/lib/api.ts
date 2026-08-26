@@ -39,7 +39,7 @@ export const authAPI = {
 }
 
 export const voicesAPI = {
-  list: () => api.get("/generate/voices"),
+  list: () => api.get("/voices/"),
   get: (id: string) => api.get(`/voices/${id}`),
   preview: (id: string) => api.get(`/voices/${id}/preview`)
 }
