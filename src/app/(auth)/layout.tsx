@@ -27,6 +27,15 @@ export default function AuthLayout({
 
       {/* Right panel — visual */}
       <div className="hidden lg:flex flex-1 relative overflow-hidden bg-[#0f0a1a]">
+        {/* Swap src for your video file in /public/brand-video.mp4 */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover opacity-60"
+          src="/brand-video.mp4"
+        />
         {/* Gradient orbs */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-violet-400/10 rounded-full blur-2xl" />
