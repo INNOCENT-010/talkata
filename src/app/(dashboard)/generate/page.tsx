@@ -70,6 +70,7 @@ function VoicePicker({
   onSelect: (v: Voice) => void
   onClose: () => void
 }) {
+  console.log("VoicePicker voices:", voices.length, voices[0])
   return (
     <>
       {/* Backdrop */}
@@ -92,6 +93,11 @@ function VoicePicker({
 
           {/* Scrollable list */}
           <div className="overflow-y-auto flex-1 min-h-[200px]">
+            {voices.length === 0 && (
+              <div className="flex items-center justify-center h-40 text-white/30 text-sm">
+                Loading voices...
+              </div>
+            )}
             {(["male", "female"] as const).map((gender) => {
               const group = voices.filter(v => v.gender === gender)
               if (!group.length) return null
