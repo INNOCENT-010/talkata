@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react"
 import { useAuthStore } from "@/store/authStore"
 import { useRouter } from "next/navigation"
 import { generateAPI, voicesAPI } from "@/lib/api"
-import { Mic2, Zap, Download, ChevronDown, Clock, Play, Pause, Square } from "lucide-react"
+import { Mic2, Zap, Download, ChevronDown, Clock, Play, Square } from "lucide-react"
 import Button from "@/components/ui/Button"
 
 const CACHE_KEY       = "talkata_draft_text"
@@ -27,10 +27,9 @@ function PreviewButton({ url, voiceId }: { url?: string; voiceId: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const toggle = (e: React.MouseEvent) => {
-    e.stopPropagation() // don't close dropdown or select voice
+    e.stopPropagation()
     if (!url) return
 
-    // Stop any other preview that might be playing
     const existing = (window as any).__talkataPreview as HTMLAudioElement | undefined
     if (existing && existing !== audioRef.current) {
       existing.pause()
@@ -58,7 +57,6 @@ function PreviewButton({ url, voiceId }: { url?: string; voiceId: string }) {
     }
   }
 
-  // Cleanup on unmount
   useEffect(() => () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
   }, [])
@@ -96,7 +94,11 @@ export default function GeneratePage() {
   const [result, setResult] = useState<{ url: string; credits_used: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
+
+  // For positioning the dropdown via fixed coords
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
   const pollRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -120,19 +122,51 @@ export default function GeneratePage() {
     if (selectedVoice) localStorage.setItem(VOICE_CACHE_KEY, selectedVoice.id)
   }, [selectedVoice])
 
+  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
-        setVoiceOpen(false)
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) setVoiceOpen(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  // Credits: proportional to text length, minimum 100
-  const CHARS_PER_MINUTE  = 800
-  const CREDITS_PER_MIN   = 1000
-  const MIN_CREDITS        = 100
+  // Reposition dropdown whenever it opens
+  useEffect(() => {
+    if (!voiceOpen || !triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const dropH = Math.min(320, window.innerHeight * 0.55)
+
+    if (spaceBelow >= dropH) {
+      // Open downward
+      setDropdownStyle({
+        position: "fixed",
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: dropH,
+        zIndex: 9999,
+      })
+    } else {
+      // Open upward
+      setDropdownStyle({
+        position: "fixed",
+        bottom: window.innerHeight - rect.top + 6,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: dropH,
+        zIndex: 9999,
+      })
+    }
+  }, [voiceOpen])
+
+  const CHARS_PER_MINUTE = 800
+  const CREDITS_PER_MIN  = 1000
+  const MIN_CREDITS      = 100
   const creditCost = Math.max(MIN_CREDITS, Math.round((text.length / CHARS_PER_MINUTE) * CREDITS_PER_MIN))
 
   const pollJobStatus = (jobId: string) => {
@@ -167,7 +201,7 @@ export default function GeneratePage() {
               : `Processing your audio... ${elapsed}s`
           )
         }
-      } catch { /* network blip — keep polling */ }
+      } catch { /* network blip */ }
     }, POLL_INTERVAL)
   }
 
@@ -295,7 +329,7 @@ export default function GeneratePage() {
             <p className="text-white text-2xl font-bold">{(user?.credits ?? 0).toLocaleString()}</p>
           </div>
 
-          {/* Voice selector */}
+          {/* Voice selector — no overflow-hidden on the card */}
           <div className="bg-white/5 border border-white/10 rounded-xl p-5">
             <p className="text-white/60 text-sm mb-3">Voice</p>
 
@@ -304,62 +338,21 @@ export default function GeneratePage() {
               <div className="bg-white/5 border border-violet-500/20 rounded-lg px-3 py-2.5 mb-2 flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium truncate">{selectedVoice.name}</p>
-                  <p className="text-white/40 text-xs mt-0.5 truncate">{selectedVoice.description}</p>
+                  <p className="text-white/40 text-xs mt-0.5 line-clamp-2">{selectedVoice.description}</p>
                 </div>
-                {selectedVoice.preview_url && (
-                  <PreviewButton url={selectedVoice.preview_url} voiceId={selectedVoice.id} />
-                )}
+                <PreviewButton url={selectedVoice.preview_url} voiceId={selectedVoice.id} />
               </div>
             )}
 
-            {/* Dropdown trigger */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setVoiceOpen(!voiceOpen)}
-                className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white/60 text-sm hover:border-white/20 transition-colors"
-              >
-                <span>Change voice</span>
-                <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${voiceOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {voiceOpen && (
-                <div className="absolute top-full mt-2 left-0 right-0 bg-[#1a1a2e] border border-white/10 rounded-xl overflow-hidden z-50 shadow-xl max-h-72 overflow-y-auto">
-                  {/* Gender group headers */}
-                  {(["male", "female"] as const).map((gender) => {
-                    const group = voices.filter(v => v.gender === gender)
-                    if (!group.length) return null
-                    return (
-                      <div key={gender}>
-                        <div className="px-4 py-2 bg-white/3 border-b border-white/5">
-                          <span className="text-white/30 text-xs font-medium uppercase tracking-wider">
-                            {gender === "male" ? "Male Narrators" : "Female Narrators"}
-                          </span>
-                        </div>
-                        {group.map((v) => (
-                          <button
-                            key={v.id}
-                            onClick={() => { setSelectedVoice(v); setVoiceOpen(false) }}
-                            className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 ${
-                              selectedVoice?.id === v.id ? "bg-violet-600/20" : ""
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className={`font-medium truncate ${selectedVoice?.id === v.id ? "text-white" : "text-white/80"}`}>
-                                  {v.name}
-                                </p>
-                                <p className="text-white/35 text-xs mt-0.5 truncate">{v.accent}</p>
-                              </div>
-                              <PreviewButton url={v.preview_url} voiceId={v.id} />
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            {/* Dropdown trigger — measured for portal positioning */}
+            <button
+              ref={triggerRef}
+              onClick={() => setVoiceOpen(!voiceOpen)}
+              className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white/60 text-sm hover:border-white/20 transition-colors"
+            >
+              <span>Change voice</span>
+              <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${voiceOpen ? "rotate-180" : ""}`} />
+            </button>
           </div>
 
           {/* Speed */}
@@ -380,6 +373,48 @@ export default function GeneratePage() {
           </div>
         </div>
       </div>
+
+      {/* ── Dropdown portal — fixed positioned, always on top ──────────────── */}
+      {voiceOpen && (
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl overflow-y-auto"
+        >
+          {(["male", "female"] as const).map((gender) => {
+            const group = voices.filter(v => v.gender === gender)
+            if (!group.length) return null
+            return (
+              <div key={gender}>
+                <div className="px-4 py-2 bg-white/[0.03] border-b border-white/5 sticky top-0">
+                  <span className="text-white/30 text-xs font-medium uppercase tracking-wider">
+                    {gender === "male" ? "Male Narrators" : "Female Narrators"}
+                  </span>
+                </div>
+                {group.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => { setSelectedVoice(v); setVoiceOpen(false) }}
+                    className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 ${
+                      selectedVoice?.id === v.id ? "bg-violet-600/20" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className={`font-medium truncate ${selectedVoice?.id === v.id ? "text-white" : "text-white/80"}`}>
+                          {v.name}
+                        </p>
+                        <p className="text-white/35 text-xs mt-0.5 truncate">{v.accent}</p>
+                      </div>
+                      <PreviewButton url={v.preview_url} voiceId={v.id} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
