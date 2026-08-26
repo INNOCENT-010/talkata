@@ -1,19 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { authAPI } from "@/lib/api"
 import { useAuthStore } from "@/store/authStore"
 import Button from "@/components/ui/Button"
-import Input from "@/components/ui/Input"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { setToken, fetchUser } = useAuthStore()
+  const { setToken, fetchUser, token } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [form, setForm] = useState({ email: "", password: "" })
+
+  // If already logged in skip straight to dashboard
+  useEffect(() => {
+    if (token) router.replace("/dashboard")
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,17 +26,21 @@ export default function LoginPage() {
     try {
       const res = await authAPI.login(form)
       setToken(res.data.access_token)
-      await fetchUser()
+      // Prefetch user in background — don't block navigation
+      fetchUser().catch(() => {})
       router.push("/dashboard")
     } catch {
       setError("Invalid email or password")
-    } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form
+      onSubmit={handleSubmit}
+      autoComplete="on"
+      className="flex flex-col gap-4"
+    >
       <div className="mb-2">
         <h2 className="text-xl font-bold text-white">Welcome back</h2>
         <p className="text-white/50 text-sm mt-1">Sign in to your account</p>
@@ -44,23 +52,47 @@ export default function LoginPage() {
         </div>
       )}
 
-      <Input
-        label="Email"
-        type="email"
-        placeholder="you@example.com"
-        value={form.email}
-        onChange={(e) => setForm({ ...form, email: e.target.value })}
-        required
-      />
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
+          Email
+        </label>
+        <input
+          type="email"
+          name="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          required
+          className="w-full px-4 py-2.5 rounded-lg text-white focus:outline-none transition-all"
+          style={{
+            backgroundColor: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}
+        />
+      </div>
 
-      <Input
-        label="Password"
-        type="password"
-        placeholder="••••••••"
-        value={form.password}
-        onChange={(e) => setForm({ ...form, password: e.target.value })}
-        required
-      />
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>
+            Password
+          </label>
+        </div>
+        <input
+          type="password"
+          name="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+          value={form.password}
+          onChange={(e) => setForm({ ...form, password: e.target.value })}
+          required
+          className="w-full px-4 py-2.5 rounded-lg text-white focus:outline-none transition-all"
+          style={{
+            backgroundColor: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}
+        />
+      </div>
 
       <Button type="submit" isLoading={isLoading} size="lg" className="mt-2 w-full">
         Sign In

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import SessionWatcher from "@/components/SessionWatcher"
 import { Inter } from "next/font/google"
 import "./globals.css"
 
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-[#0a0a0f] antialiased`}>
+        <SessionWatcher />
         {children}
       </body>
     </html>
