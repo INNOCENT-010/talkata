@@ -81,7 +81,7 @@ function VoicePicker({
 
       {/* Sheet — slides up from bottom on mobile, centered modal on desktop */}
       <div className="fixed z-50 inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center md:p-6">
-        <div className="bg-[#13131f] border border-white/10 rounded-t-2xl md:rounded-2xl w-full md:max-w-md shadow-2xl flex flex-col max-h-[80vh] min-h-[400px]">
+        <div className="bg-[#13131f] border border-white/10 rounded-t-2xl md:rounded-2xl w-full md:max-w-md shadow-2xl flex flex-col" style={{ maxHeight: '80vh', minHeight: '400px' }}>
 
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
@@ -92,7 +92,7 @@ function VoicePicker({
           </div>
 
           {/* Scrollable list */}
-          <div className="overflow-y-auto flex-1 min-h-[200px]">
+          <div style={{ overflowY: 'auto', flex: 1, minHeight: '200px' }}>
             {voices.length === 0 && (
               <div className="flex items-center justify-center h-40 text-white/30 text-sm">
                 Loading voices...
