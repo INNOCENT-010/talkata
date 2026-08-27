@@ -15,6 +15,7 @@ interface Job {
   credits_used: number
   duration_seconds?: number
   created_at: string
+  voice_display_name?: string
   voice_name?: string
 }
 
@@ -267,7 +268,7 @@ export default function HistoryPage() {
                         <div className="flex items-center gap-1.5">
                           <Mic2 className="w-3 h-3 text-violet-400/60 shrink-0" />
                           <span className="text-white/70 text-sm truncate max-w-[120px]">
-                            {formatVoiceName(job.voice_name)}
+                            {formatVoiceName(job.voice_display_name)}
                           </span>
                         </div>
                       </td>
@@ -332,7 +333,7 @@ export default function HistoryPage() {
                     <div className="flex items-center gap-3 flex-wrap">
                       <div className="flex items-center gap-1 text-xs text-white/50">
                         <Mic2 className="w-3 h-3 text-violet-400/60" />
-                        {formatVoiceName(job.voice_name)}
+                        {formatVoiceName(job.voice_display_name)}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-white/50">
                         <Zap className="w-3 h-3 text-yellow-400/60" />

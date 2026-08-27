@@ -137,7 +137,7 @@ export default function AdminGenerationsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-white/60 text-sm capitalize">
-                        {job.voice_name?.replace(/_/g, " ")}
+                        {job.voice_display_name?.replace(/_/g, " ")}
                       </span>
                     </td>
                     <td className="px-6 py-4">
