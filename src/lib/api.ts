@@ -48,7 +48,8 @@ export const generateAPI = {
   create: (data: { voice_id: string; text: string; speed?: number }) =>
     api.post("/generate/", data),
   status: (jobId: string) => api.get(`/generate/job/${jobId}`),
-  history: () => api.get("/generate/history")
+  history: () => api.get("/generate/history"),
+  cancel: (jobId: string) => api.delete(`/generate/job/${jobId}/cancel`)
 }
 
 export const creditsAPI = {

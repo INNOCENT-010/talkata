@@ -134,6 +134,7 @@ export default function HistoryPage() {
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
   const { playingId, toggle } = useAudioStore()
   const pollRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -182,18 +183,47 @@ export default function HistoryPage() {
     toggle(job.id, job.audio_url)
   }
 
+  const handleCancel = async (job: Job) => {
+    if (cancellingId === job.id) return
+    setCancellingId(job.id)
+    try {
+      await generateAPI.cancel(job.id)
+      // Also notify ML worker to skip if still queued
+      setJobs(prev => prev.map(j =>
+        j.id === job.id ? { ...j, status: "cancelled" } : j
+      ))
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail ?? "Could not cancel job"
+      alert(detail)
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
   const hasActiveJobs = jobs.some(j => j.status === "queued" || j.status === "processing")
+  const hasActive = (j: Job) => j.status === "queued" || j.status === "processing"
 
   // ── Status badge ────────────────────────────────────────────────────────────
-  const StatusBadge = ({ status }: { status: string }) => (
+  const StatusBadge = ({ job }: { job: Job }) => (
     <div className="flex items-center gap-1.5">
       <span className={`text-xs px-2 py-1 rounded-full ${
-        status === "complete"   ? "bg-green-500/10 text-green-400"
-        : status === "failed"  ? "bg-red-500/10 text-red-400"
+        job.status === "complete"   ? "bg-green-500/10 text-green-400"
+        : job.status === "failed"  ? "bg-red-500/10 text-red-400"
+        : job.status === "cancelled" ? "bg-white/5 text-white/30"
         : "bg-violet-500/10 text-violet-400"
-      }`}>{status}</span>
-      {(status === "queued" || status === "processing") && (
+      }`}>{job.status}</span>
+      {(job.status === "queued" || job.status === "processing") && (
         <div className="w-3 h-3 border border-violet-400/50 border-t-violet-400 rounded-full animate-spin" />
+      )}
+      {job.status === "queued" && (
+        <button
+          onClick={() => handleCancel(job)}
+          disabled={cancellingId === job.id}
+          className="text-white/20 hover:text-red-400 transition-colors text-xs ml-1"
+          title="Cancel job"
+        >
+          {cancellingId === job.id ? "..." : "✕"}
+        </button>
       )}
     </div>
   )
@@ -275,7 +305,7 @@ export default function HistoryPage() {
 
                       {/* Status */}
                       <td className="px-6 py-4">
-                        <StatusBadge status={job.status} />
+                        <StatusBadge job={job} />
                       </td>
 
                       {/* Credits */}
@@ -320,7 +350,7 @@ export default function HistoryPage() {
                     {/* Text + status */}
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-white text-sm line-clamp-2 flex-1">{job.text}</p>
-                      <StatusBadge status={job.status} />
+                      <StatusBadge job={job} />
                     </div>
 
                     {expiring !== null && (
