@@ -4,16 +4,34 @@ import { useEffect, useState, useRef } from "react"
 import { useAuthStore } from "@/store/authStore"
 import { useRouter } from "next/navigation"
 import { generateAPI, voicesAPI } from "@/lib/api"
-import { Mic2, Zap, Download, ChevronDown, Clock, Play, Square, X, Check } from "lucide-react"
+import { Mic2, Zap, Download, Clock, Play, Square, X, Check, Sparkles, Wand2 } from "lucide-react"
 import Button from "@/components/ui/Button"
 
-const CACHE_KEY       = "talkata_draft_text"
-const VOICE_CACHE_KEY = "talkata_draft_voice"
-const POLL_INTERVAL   = 3000
-const POLL_TIMEOUT    = 10 * 60 * 1000
+const CACHE_KEY        = "talkata_draft_text"
+const VOICE_CACHE_KEY  = "talkata_draft_voice"
+const MODEL_CACHE_KEY  = "talkata_draft_model"
+const POLL_INTERVAL    = 3000
+const POLL_TIMEOUT     = 10 * 60 * 1000
 const CHARS_PER_MINUTE = 800
 const CREDITS_PER_MIN  = 1000
 const MIN_CREDITS      = 100
+
+// ── Voice IDs that belong to the "Character" model (XTTS cloned) ─────────────
+const CHARACTER_VOICE_IDS = new Set([
+  "horror_male", "dramatic_male", "classic_narrator",
+  "enthusiastic_female", "detective_female",
+])
+
+// ── Use-case groups per model ─────────────────────────────────────────────────
+const STANDARD_GROUPS: { label: string; ids: string[] }[] = [
+  { label: "Narration and long-form",   ids: ["nova", "ivy", "orion", "jasper"] },
+  { label: "Professional and corporate", ids: ["aria", "sage", "atlas", "echo"] },
+  { label: "Wellness and meditation",   ids: ["luna"] },
+]
+const CHARACTER_GROUPS: { label: string; ids: string[] }[] = [
+  { label: "Character voices",  ids: ["horror_male", "dramatic_male", "detective_female", "enthusiastic_female"] },
+  { label: "Classic narration", ids: ["classic_narrator"] },
+]
 
 interface Voice {
   id: string
@@ -21,8 +39,11 @@ interface Voice {
   gender: string
   accent: string
   description: string
+  engine?: string
   preview_url?: string
 }
+
+type ModelType = "standard" | "character"
 
 // ── Preview play/stop button ──────────────────────────────────────────────────
 function PreviewButton({ url, voiceId }: { url?: string; voiceId: string }) {
@@ -56,91 +77,164 @@ function PreviewButton({ url, voiceId }: { url?: string; voiceId: string }) {
       }`}
       title={playing ? "Stop" : "Preview"}
     >
-      {playing ? <Square className="w-2.5 h-2.5 fill-current" /> : <Play className="w-2.5 h-2.5 ml-0.5 fill-current" />}
+      {playing
+        ? <Square className="w-2.5 h-2.5 fill-current" />
+        : <Play  className="w-2.5 h-2.5 ml-0.5 fill-current" />
+      }
     </button>
   )
 }
 
-// ── Voice picker modal — works on both mobile and desktop ─────────────────────
+// ── Voice picker modal ────────────────────────────────────────────────────────
 function VoicePicker({
-  voices, selected, onSelect, onClose
+  voices, selected, onSelect, onClose,
 }: {
   voices: Voice[]
   selected: Voice | null
   onSelect: (v: Voice) => void
   onClose: () => void
 }) {
-  console.log("VoicePicker voices:", voices.length, voices[0])
+  const voiceMap = Object.fromEntries(voices.map(v => [v.id, v]))
+
+  const [activeModel, setActiveModel] = useState<ModelType>(() => {
+    if (selected && CHARACTER_VOICE_IDS.has(selected.id)) return "character"
+    return "standard"
+  })
+
+  const groups = activeModel === "standard" ? STANDARD_GROUPS : CHARACTER_GROUPS
+
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Sheet — slides up from bottom on mobile, centered modal on desktop */}
       <div className="fixed z-50 inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center md:p-6">
-        <div className="bg-[#13131f] border border-white/10 rounded-t-2xl md:rounded-2xl w-full md:max-w-md shadow-2xl flex flex-col" style={{ maxHeight: '80vh', minHeight: '400px' }}>
-
+        <div
+          className="bg-[#13131f] border border-white/10 rounded-t-2xl md:rounded-2xl w-full md:max-w-lg shadow-2xl flex flex-col"
+          style={{ maxHeight: "85vh" }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
-            <h3 className="text-white font-semibold text-base">Choose a Voice</h3>
+            <h3 className="text-white font-semibold text-base">Choose a voice</h3>
             <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Scrollable list */}
-          <div style={{ overflowY: 'auto', flex: 1, minHeight: '200px' }}>
-            {voices.length === 0 && (
-              <div className="flex items-center justify-center h-40 text-white/30 text-sm">
-                Loading voices...
-              </div>
-            )}
-            {(["male", "female"] as const).map((gender) => {
-              const group = voices.filter(v => v.gender === gender)
-              if (!group.length) return null
+          {/* Model toggle */}
+          <div className="px-5 pt-4 pb-3 flex-shrink-0">
+            <p className="text-white/30 text-xs font-medium uppercase tracking-widest mb-3">Voice type</p>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Standard */}
+              <button
+                onClick={() => setActiveModel("standard")}
+                className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all text-left ${
+                  activeModel === "standard"
+                    ? "border-violet-500/50 bg-violet-600/10"
+                    : "border-white/10 bg-white/[0.03] hover:border-white/20"
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  activeModel === "standard" ? "bg-violet-500/20" : "bg-white/5"
+                }`}>
+                  <Sparkles className={`w-4 h-4 ${activeModel === "standard" ? "text-violet-400" : "text-white/30"}`} />
+                </div>
+                <div>
+                  <p className={`text-sm font-medium ${activeModel === "standard" ? "text-white" : "text-white/60"}`}>
+                    Standard
+                  </p>
+                  <p className="text-white/30 text-xs mt-0.5 leading-snug">Natural voices — fast generation</p>
+                </div>
+              </button>
+
+              {/* Character */}
+              <button
+                onClick={() => setActiveModel("character")}
+                className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all text-left ${
+                  activeModel === "character"
+                    ? "border-violet-500/50 bg-violet-600/10"
+                    : "border-white/10 bg-white/[0.03] hover:border-white/20"
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  activeModel === "character" ? "bg-violet-500/20" : "bg-white/5"
+                }`}>
+                  <Wand2 className={`w-4 h-4 ${activeModel === "character" ? "text-violet-400" : "text-white/30"}`} />
+                </div>
+                <div>
+                  <p className={`text-sm font-medium ${activeModel === "character" ? "text-white" : "text-white/60"}`}>
+                    Character
+                  </p>
+                  <p className="text-white/30 text-xs mt-0.5 leading-snug">Distinctive voices — voice cloning</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Voice list */}
+          <div className="overflow-y-auto flex-1 border-t border-white/5">
+            {groups.map((group) => {
+              const groupVoices = group.ids.map(id => voiceMap[id]).filter(Boolean)
+              if (!groupVoices.length) return null
               return (
-                <div key={gender}>
-                  <div className="px-5 py-2.5 bg-white/[0.03] border-b border-white/5 sticky top-0">
-                    <span className="text-white/30 text-xs font-semibold uppercase tracking-widest">
-                      {gender === "male" ? "Male Narrators" : "Female Narrators"}
+                <div key={group.label}>
+                  {/* Group header */}
+                  <div className="px-5 py-2 bg-white/[0.02] border-b border-white/5 sticky top-0">
+                    <span className="text-white/25 text-xs font-medium uppercase tracking-widest">
+                      {group.label}
                     </span>
                   </div>
-                  {group.map((v) => (
-                    <button
-                      key={v.id}
-                      onClick={() => { onSelect(v); onClose() }}
-                      className={`w-full text-left px-5 py-3.5 border-b border-white/5 last:border-0 transition-colors flex items-center gap-3 ${
-                        selected?.id === v.id ? "bg-violet-600/15" : "hover:bg-white/[0.04]"
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className={`font-medium text-sm truncate ${selected?.id === v.id ? "text-white" : "text-white/80"}`}>
-                            {v.name}
-                          </p>
-                          {selected?.id === v.id && <Check className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
-                        </div>
-                        <p className="text-white/35 text-xs mt-0.5 truncate">{v.accent} · {v.description.split("—")[1]?.trim() ?? v.accent}</p>
-                      </div>
-                      <PreviewButton url={v.preview_url} voiceId={v.id} />
-                    </button>
-                  ))}
+
+                  {/* Voice rows — 2 columns */}
+                  <div className="grid grid-cols-2 divide-x divide-white/5">
+                    {groupVoices.map((v, i) => {
+                      const isSelected = selected?.id === v.id
+                      const initials = v.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+                      const isFemale = v.gender === "female"
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => { onSelect(v); onClose() }}
+                          className={`flex items-center gap-3 px-4 py-3.5 border-b border-white/5 transition-colors text-left w-full ${
+                            isSelected ? "bg-violet-600/15" : "hover:bg-white/[0.03]"
+                          } ${i % 2 === 0 && groupVoices.length % 2 !== 0 && i === groupVoices.length - 1 ? "col-span-2" : ""}`}
+                        >
+                          {/* Avatar */}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${
+                            isFemale ? "bg-pink-500/20 text-pink-300" : "bg-blue-500/20 text-blue-300"
+                          }`}>
+                            {initials}
+                          </div>
+
+                          {/* Name + accent */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className={`text-sm font-medium truncate ${isSelected ? "text-white" : "text-white/80"}`}>
+                                {v.name}
+                              </p>
+                              {isSelected && <Check className="w-3 h-3 text-violet-400 flex-shrink-0" />}
+                            </div>
+                            <p className="text-white/30 text-xs truncate">{v.accent}</p>
+                          </div>
+
+                          <PreviewButton url={v.preview_url} voiceId={v.id} />
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })}
           </div>
 
-          {/* Safe area spacer for mobile */}
-          <div className="h-safe-bottom md:hidden flex-shrink-0 pb-4" />
+          {/* Mobile safe area */}
+          <div className="md:hidden flex-shrink-0 pb-6" />
         </div>
       </div>
     </>
   )
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function GeneratePage() {
   const { user, fetchUser } = useAuthStore()
   const router = useRouter()
@@ -160,11 +254,11 @@ export default function GeneratePage() {
     const cached = localStorage.getItem(CACHE_KEY)
     if (cached) setText(cached)
     voicesAPI.list().then((res) => {
-      const v = res.data.voices
+      const v: Voice[] = res.data.voices
       setVoices(v)
       const cachedVoiceId = localStorage.getItem(VOICE_CACHE_KEY)
-      const match = v.find((x: Voice) => x.id === cachedVoiceId)
-      setSelectedVoice(match ?? v[0])
+      const match = v.find((x) => x.id === cachedVoiceId)
+      setSelectedVoice(match ?? v[0] ?? null)
       if (!match) localStorage.removeItem(VOICE_CACHE_KEY)
     }).finally(() => setIsLoadingVoices(false))
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
@@ -176,6 +270,10 @@ export default function GeneratePage() {
   }, [selectedVoice])
 
   const creditCost = Math.max(MIN_CREDITS, Math.round((text.length / CHARS_PER_MINUTE) * CREDITS_PER_MIN))
+
+  const activeModelLabel = selectedVoice && CHARACTER_VOICE_IDS.has(selectedVoice.id)
+    ? "Character"
+    : "Standard"
 
   const handleGenerate = async () => {
     if (!text.trim() || !selectedVoice) return
@@ -200,7 +298,7 @@ export default function GeneratePage() {
           <div className="h-72 bg-white/5 rounded-xl" />
           <div className="flex flex-col gap-4">
             <div className="h-24 bg-white/5 rounded-xl" />
-            <div className="h-36 bg-white/5 rounded-xl" />
+            <div className="h-40 bg-white/5 rounded-xl" />
             <div className="h-20 bg-white/5 rounded-xl" />
           </div>
         </div>
@@ -294,28 +392,48 @@ export default function GeneratePage() {
             <div className="bg-white/5 border border-white/10 rounded-xl p-5">
               <p className="text-white/60 text-sm mb-3">Voice</p>
 
-              {/* Current voice card */}
-              {selectedVoice && (
-                <div className="bg-white/5 border border-violet-500/20 rounded-lg px-3 py-3 mb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-white text-sm font-semibold">{selectedVoice.name}</p>
-                      <p className="text-white/40 text-xs mt-0.5">{selectedVoice.accent}</p>
-                      <p className="text-white/30 text-xs mt-1 line-clamp-2">{selectedVoice.description}</p>
+              {/* Selected voice card */}
+              {selectedVoice ? (
+                <button
+                  onClick={() => setVoicePickerOpen(true)}
+                  className="w-full bg-white/5 border border-violet-500/20 rounded-xl p-3.5 mb-2 text-left hover:border-violet-500/40 transition-colors group"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
+                      selectedVoice.gender === "female"
+                        ? "bg-pink-500/20 text-pink-300"
+                        : "bg-blue-500/20 text-blue-300"
+                    }`}>
+                      {selectedVoice.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
                     </div>
-                    <PreviewButton url={selectedVoice.preview_url} voiceId={selectedVoice.id} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-white text-sm font-semibold">{selectedVoice.name}</p>
+                        <span className="text-xs text-violet-400/70 bg-violet-500/10 px-1.5 py-0.5 rounded-md">
+                          {activeModelLabel}
+                        </span>
+                      </div>
+                      <p className="text-white/40 text-xs mt-0.5">{selectedVoice.accent}</p>
+                      <p className="text-white/25 text-xs mt-1 line-clamp-2">{selectedVoice.description}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                      <PreviewButton url={selectedVoice.preview_url} voiceId={selectedVoice.id} />
+                    </div>
                   </div>
-                </div>
+                  <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-white/30 text-xs">Tap to change voice</span>
+                    <span className="text-violet-400/60 text-xs">Browse all →</span>
+                  </div>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setVoicePickerOpen(true)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl p-4 mb-2 text-center hover:border-violet-500/40 transition-colors"
+                >
+                  <p className="text-white/50 text-sm">Select a voice</p>
+                </button>
               )}
-
-              {/* Open picker button */}
-              <button
-                onClick={() => setVoicePickerOpen(true)}
-                className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white/60 text-sm hover:border-violet-500/40 hover:text-white/80 transition-colors"
-              >
-                <span>Change voice</span>
-                <ChevronDown className="w-4 h-4 text-white/40" />
-              </button>
             </div>
 
             {/* Speed */}
@@ -337,7 +455,6 @@ export default function GeneratePage() {
         </div>
       </div>
 
-      {/* ── Voice picker modal — portal-style, always on top ─────────────── */}
       {voicePickerOpen && (
         <VoicePicker
           voices={voices}
