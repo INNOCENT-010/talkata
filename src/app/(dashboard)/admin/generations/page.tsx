@@ -18,6 +18,7 @@ interface Job {
   audio_url?: string
   error?: string
   created_at: string
+  voice_display_name?: string
 }
 
 export default function AdminGenerationsPage() {
