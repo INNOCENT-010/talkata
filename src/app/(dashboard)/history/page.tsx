@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { generateAPI } from "@/lib/api"
 import { formatDate } from "@/lib/utils"
 import { History, Play, Pause, Download, Info, Clock, Mic2, Zap } from "lucide-react"
+import { useAudioStore } from "@/store/audioStore"
 
 interface Job {
   id: string
@@ -132,7 +133,7 @@ export default function HistoryPage() {
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [playingId, setPlayingId] = useState<string | null>(null)
+  const { playingId, toggle } = useAudioStore()
   const pollRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchJobs = async () => {
@@ -177,25 +178,7 @@ export default function HistoryPage() {
 
   const handleToggle = (job: Job) => {
     if (!job.audio_url) return
-
-    // Stop current
-    const existing = (window as any).__talkataAudio as HTMLAudioElement | undefined
-    if (existing) {
-      existing.pause()
-      existing.src = ""
-      delete (window as any).__talkataAudio
-    }
-
-    if (playingId === job.id) {
-      setPlayingId(null)
-      return
-    }
-
-    const audio = new Audio(job.audio_url)
-    ;(window as any).__talkataAudio = audio
-    audio.play()
-    setPlayingId(job.id)
-    audio.onended = () => { setPlayingId(null); delete (window as any).__talkataAudio }
+    toggle(job.id, job.audio_url)
   }
 
   const hasActiveJobs = jobs.some(j => j.status === "queued" || j.status === "processing")

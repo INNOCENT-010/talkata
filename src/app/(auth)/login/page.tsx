@@ -104,6 +104,13 @@ export default function LoginPage() {
           Sign up
         </Link>
       </p>
+
+      <p className="text-center text-white/30 text-xs mt-2">
+        By signing in you agree to our{" "}
+        <Link href="/terms" className="text-white/50 hover:text-white underline">Terms</Link>
+        {" "}and{" "}
+        <Link href="/privacy" className="text-white/50 hover:text-white underline">Privacy Policy</Link>
+      </p>
     </form>
   )
 }

@@ -15,8 +15,10 @@ import {
   Zap,
   Menu,
   X,
-  Shield
+  Shield,
+  Square
 } from "lucide-react"
+import { useAudioStore } from "@/store/audioStore"
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,7 +30,25 @@ const links = [
 const adminLinks = [
   { href: "/admin", label: "Admin", icon: Shield },
 ]
-
+function NowPlaying() {
+  const { playingId, stop } = useAudioStore()
+  if (!playingId) return null
+  return (
+    <div className="mx-4 mt-3 p-3 bg-violet-600/10 border border-violet-500/20 rounded-lg flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse shrink-0" />
+        <span className="text-violet-300 text-xs truncate">Playing audio</span>
+      </div>
+      <button
+        onClick={stop}
+        className="text-violet-400 hover:text-white transition-colors shrink-0"
+        title="Stop"
+      >
+        <Square className="w-3.5 h-3.5 fill-current" />
+      </button>
+    </div>
+  )
+}
 export default function Sidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
@@ -62,6 +82,9 @@ export default function Sidebar() {
           {((user?.credits ?? 0) ).toLocaleString()}
         </p>
       </div>
+
+      {/* Now Playing */}
+      <NowPlaying />
 
       {/* Nav Links */}
       <nav className="flex-1 p-4 flex flex-col gap-1 mt-2">

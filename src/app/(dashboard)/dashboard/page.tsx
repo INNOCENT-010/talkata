@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore"
 import { generateAPI } from "@/lib/api"
 import { formatCredits, formatDate } from "@/lib/utils"
 import { Mic2, Zap, History, TrendingUp, Play, Pause } from "lucide-react"
+import { useAudioStore } from "@/store/audioStore"
 import Link from "next/link"
 import Button from "@/components/ui/Button"
 
@@ -12,28 +13,11 @@ export default function DashboardPage() {
   const { user } = useAuthStore()
   const [recentJobs, setRecentJobs] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [playingId, setPlayingId] = useState<string | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const { playingId, toggle } = useAudioStore()
 
   const handlePlay = (job: any) => {
     if (!job.audio_url) return
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.src = ""
-    }
-    if (playingId === job.id) {
-      setPlayingId(null)
-      audioRef.current = null
-      return
-    }
-    const audio = new Audio(job.audio_url)
-    audioRef.current = audio
-    audio.play()
-    setPlayingId(job.id)
-    audio.onended = () => {
-      setPlayingId(null)
-      audioRef.current = null
-    }
+    toggle(job.id, job.audio_url)
   }
 
   useEffect(() => {
