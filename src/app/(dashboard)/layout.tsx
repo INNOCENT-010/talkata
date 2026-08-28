@@ -40,7 +40,7 @@ export default function DashboardLayout({
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0a0a0f', color: 'white', display: 'flex' }}>
       <Sidebar />
-      <main className="md:ml-64 pt-16 md:pt-0 p-4 md:p-8 flex-1 min-w-0">
+      <main className="flex-1 p-6 md:p-8 overflow-y-auto pt-16 lg:pt-8">
         {children}
       </main>
     </div>
