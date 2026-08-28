@@ -14,6 +14,7 @@ import {
   LogOut,
   Zap,
   Menu,
+  Terminal,
   X,
   Shield,
   Square
@@ -21,11 +22,13 @@ import {
 import { useAudioStore } from "@/store/audioStore"
 
 const links = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/generate", label: "Generate", icon: Mic2 },
-  { href: "/history", label: "History", icon: History },
-  { href: "/credits", label: "Credits", icon: CreditCard },
+  { href: "/dashboard",  label: "Dashboard", icon: LayoutDashboard },
+  { href: "/generate",   label: "Generate",  icon: Mic2 },
+  { href: "/history",    label: "History",   icon: History },
+  { href: "/credits",    label: "Credits",   icon: CreditCard },
+  { href: "/developer",  label: "Developer", icon: Terminal },
 ]
+
 
 const adminLinks = [
   { href: "/admin", label: "Admin", icon: Shield },

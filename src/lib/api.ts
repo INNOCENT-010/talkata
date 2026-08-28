@@ -51,7 +51,12 @@ export const generateAPI = {
   history: () => api.get("/generate/history"),
   cancel: (jobId: string) => api.delete(`/generate/job/${jobId}/cancel`)
 }
-
+export const developerAPI = {
+  listKeys:   ()                      => api.get("/developer/keys"),
+  createKey:  (name: string)          => api.post("/developer/keys", { name }),
+  revokeKey:  (keyId: string)         => api.delete(`/developer/keys/${keyId}`),
+  usage:      ()                      => api.get("/developer/usage"),
+}
 export const creditsAPI = {
   balance: () => api.get("/credits/balance"),
   plans: () => api.get("/credits/plans"),
