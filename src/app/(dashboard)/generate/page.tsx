@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react"
 import { useAuthStore } from "@/store/authStore"
 import { useRouter } from "next/navigation"
-import { generateAPI, voicesAPI } from "@/lib/api"
+import api from "@/lib/api"
+import { generateAPI, voicesAPI,  } from "@/lib/api"
 import { Mic2, Zap, Download, Clock, Play, Square, X, Check, Sparkles, Wand2 } from "lucide-react"
 import Button from "@/components/ui/Button"
 
@@ -41,6 +42,8 @@ interface Voice {
   description: string
   engine?: string
   preview_url?: string
+  is_clone?: boolean
+  clone_id?: string
 }
 
 type ModelType = "standard" | "character"
@@ -253,13 +256,48 @@ export default function GeneratePage() {
   useEffect(() => {
     const cached = localStorage.getItem(CACHE_KEY)
     if (cached) setText(cached)
-    voicesAPI.list().then((res) => {
-      const v: Voice[] = res.data.voices
-      setVoices(v)
-      const cachedVoiceId = localStorage.getItem(VOICE_CACHE_KEY)
-      const match = v.find((x) => x.id === cachedVoiceId)
-      setSelectedVoice(match ?? v[0] ?? null)
-      if (!match) localStorage.removeItem(VOICE_CACHE_KEY)
+        voicesAPI.list().then(async (res) => {
+      const v = res.data.voices
+      try {
+        const [clonesRes, sharedRes] = await Promise.all([
+          api.get("/cloning/"),
+          api.get("/cloning/shared-with-me"),
+        ])
+        const cloneVoices = [
+          ...(clonesRes.data.clones || []).map((c: any) => ({
+            id:          `clone_${c.id}`,
+            name:        `⚡ ${c.name}`,
+            gender:      "",
+            accent:      "Your Clone",
+            description: "Your cloned voice",
+            preview_url: undefined,
+            is_clone:    true,
+            clone_id:    c.id,
+          })),
+          ...(sharedRes.data.voices || []).map((c: any) => ({
+            id:          `clone_${c.clone_id}`,
+            name:        `⚡ ${c.name}`,
+            gender:      "",
+            accent:      `Shared by ${c.owner_name}`,
+            description: "Shared voice clone",
+            preview_url: undefined,
+            is_clone:    true,
+            clone_id:    c.clone_id,
+          })),
+        ]
+        const allVoices = [...v, ...cloneVoices]
+        setVoices(allVoices)
+        const cachedVoiceId = localStorage.getItem(VOICE_CACHE_KEY)
+        const match = allVoices.find((x: Voice) => x.id === cachedVoiceId)
+        setSelectedVoice(match ?? allVoices[0])
+        if (!match) localStorage.removeItem(VOICE_CACHE_KEY)
+      } catch {
+        setVoices(v)
+        const cachedVoiceId = localStorage.getItem(VOICE_CACHE_KEY)
+        const match = v.find((x: Voice) => x.id === cachedVoiceId)
+        setSelectedVoice(match ?? v[0])
+        if (!match) localStorage.removeItem(VOICE_CACHE_KEY)
+      }
     }).finally(() => setIsLoadingVoices(false))
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [])
