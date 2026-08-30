@@ -206,35 +206,53 @@ function VoiceRecorder({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" })
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+  ? "audio/webm;codecs=opus"
+  : MediaRecorder.isTypeSupported("audio/webm")
+  ? "audio/webm"
+  : ""
+const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       mediaRef.current  = mr
       chunksRef.current = []
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       mr.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop())
-        setState("processing")
-        try {
-          const rawBlob   = new Blob(chunksRef.current, { type: "audio/webm" })
-          const cleanBlob = await applyNoiseReduction(rawBlob)
-          const url       = URL.createObjectURL(cleanBlob)
-          const dur       = elapsed
-          setPreviewUrl(url)
-          setDuration(dur)
-          setState("ready")
-          const file = new File([cleanBlob], "recording.wav", { type: "audio/wav" })
-          onReady(file, dur)
-        } catch (e) {
-          console.error("Noise reduction failed:", e)
-          // Fall back to raw recording if processing fails
-          const rawBlob = new Blob(chunksRef.current, { type: "audio/webm" })
-          const url     = URL.createObjectURL(rawBlob)
-          setPreviewUrl(url)
-          setDuration(elapsed)
-          setState("ready")
-          const file = new File([rawBlob], "recording.wav", { type: "audio/wav" })
-          onReady(file, elapsed)
-        }
-      }
+  stream.getTracks().forEach(t => t.stop())
+  setState("processing")
+  try {
+    const rawBlob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" })
+
+    // Verify raw blob has content before processing
+    if (rawBlob.size < 1000) {
+      throw new Error("Recording too small — microphone may not have captured audio")
+    }
+
+    const cleanBlob = await applyNoiseReduction(rawBlob)
+
+    // Verify cleaned output has content
+    if (cleanBlob.size < 1000) {
+      throw new Error("Noise reduction produced empty output — falling back to raw")
+    }
+
+    const url = URL.createObjectURL(cleanBlob)
+    setPreviewUrl(url)
+    setDuration(elapsed)
+    setState("ready")
+    const file = new File([cleanBlob], "recording.wav", { type: "audio/wav" })
+    onReady(file, elapsed)
+
+  } catch (e) {
+    console.warn("Noise reduction failed, using raw recording:", e)
+    // Fall back to raw blob — keep original mime type so browser can play it
+    const rawBlob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" })
+    const url = URL.createObjectURL(rawBlob)
+    setPreviewUrl(url)
+    setDuration(elapsed)
+    setState("ready")
+    // Still send as wav filename but with correct content
+    const file = new File([rawBlob], "recording.wav", { type: rawBlob.type })
+    onReady(file, elapsed)
+  }
+}
       mr.start(100) // collect chunks every 100ms
       setState("recording")
       setElapsed(0)
