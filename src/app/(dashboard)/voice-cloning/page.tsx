@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import {
   Wand2, Upload, Mic, Trash2, Share2, Check, Copy,
-  X, Play, Square, Users, Info, Plus,
+  X, Play, Square, Users, Info, Plus, Circle, StopCircle,
 } from "lucide-react"
 import api from "@/lib/api"
 
@@ -74,19 +74,112 @@ function AudioPreviewButton({ cloneId }: { cloneId: string }) {
   )
 }
 
+// ── Recorder component ────────────────────────────────────────────────────────
+function VoiceRecorder({ onRecorded }: { onRecorded: (file: File, duration: number) => void }) {
+  const [state, setState] = useState<"idle" | "recording" | "recorded">("idle")
+  const [elapsed, setElapsed] = useState(0)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const mediaRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const start = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      mediaRef.current = mr
+      chunksRef.current = []
+      mr.ondataavailable = e => chunksRef.current.push(e.data)
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/wav" })
+        const url = URL.createObjectURL(blob)
+        setAudioUrl(url)
+        setState("recorded")
+        const file = new File([blob], "recording.wav", { type: "audio/wav" })
+        onRecorded(file, elapsed)
+        stream.getTracks().forEach(t => t.stop())
+      }
+      mr.start()
+      setState("recording")
+      setElapsed(0)
+      timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000)
+    } catch {
+      alert("Microphone access denied. Please allow microphone in your browser settings.")
+    }
+  }
+
+  const stop = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    mediaRef.current?.stop()
+  }
+
+  const reset = () => {
+    setState("idle")
+    setElapsed(0)
+    setAudioUrl(null)
+  }
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
+
+  if (state === "idle") return (
+    <button
+      onClick={start}
+      className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-white/10 hover:border-violet-500/30 rounded-xl py-6 text-white/40 hover:text-violet-300 transition-colors text-sm"
+    >
+      <Circle className="w-4 h-4 text-red-400" />
+      Record your voice instead
+    </button>
+  )
+
+  if (state === "recording") return (
+    <div className="flex flex-col items-center gap-4 bg-red-500/5 border border-red-500/20 rounded-xl p-6">
+      <div className="flex items-center gap-3">
+        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+        <span className="text-red-400 text-sm font-medium">Recording... {elapsed}s</span>
+      </div>
+      <p className="text-white/30 text-xs text-center">
+        Speak clearly — read a paragraph naturally. Min 6s, max 2 mins.
+      </p>
+      <button
+        onClick={stop}
+        disabled={elapsed < 6}
+        className="flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-40 text-red-300 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors"
+      >
+        <StopCircle className="w-4 h-4" />
+        {elapsed < 6 ? `Stop (${6 - elapsed}s min)` : "Stop Recording"}
+      </button>
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col gap-3 bg-violet-600/5 border border-violet-500/20 rounded-xl p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-violet-300 text-sm font-medium">✓ Recording ready ({elapsed}s)</span>
+        <button onClick={reset} className="text-white/30 hover:text-red-400 transition-colors">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      {audioUrl && <audio controls src={audioUrl} className="w-full h-8" />}
+    </div>
+  )
+}
+
 export default function VoiceCloningPage() {
-  const [clones, setClones]           = useState<Clone[]>([])
+  const [clones, setClones]             = useState<Clone[]>([])
   const [sharedWithMe, setSharedWithMe] = useState<SharedVoice[]>([])
-  const [isLoading, setIsLoading]     = useState(true)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadName, setUploadName]   = useState("")
+  const [isLoading, setIsLoading]       = useState(true)
+  const [isUploading, setIsUploading]   = useState(false)
+  const [uploadName, setUploadName]     = useState("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileDuration, setFileDuration] = useState<number | null>(null)
-  const [fileError, setFileError]     = useState<string | null>(null)
-  const [shareLinks, setShareLinks]   = useState<Record<string, string>>({})
+  const [fileError, setFileError]       = useState<string | null>(null)
+  const [shareLinks, setShareLinks]     = useState<Record<string, string>>({})
   const [togglingShare, setTogglingShare] = useState<string | null>(null)
-  const [deletingId, setDeletingId]   = useState<string | null>(null)
+  const [deletingId, setDeletingId]     = useState<string | null>(null)
+  const [inputMode, setInputMode]       = useState<"upload" | "record">("upload")
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const MAX_CLONES = 10 // silent limit
 
   const fetchAll = async () => {
     const [clonesRes, sharedRes] = await Promise.all([
@@ -95,7 +188,6 @@ export default function VoiceCloningPage() {
     ])
     setClones(clonesRes.data.clones)
     setSharedWithMe(sharedRes.data.voices)
-    // Pre-populate share links for already-shared clones
     const links: Record<string, string> = {}
     for (const c of clonesRes.data.clones) {
       if (c.is_shared && c.share_token) {
@@ -112,24 +204,22 @@ export default function VoiceCloningPage() {
     if (!file) return
     setFileError(null)
     setSelectedFile(file)
-
-    // Validate duration client-side
     const url = URL.createObjectURL(file)
     const audio = new Audio(url)
     audio.onloadedmetadata = () => {
       const dur = audio.duration
       URL.revokeObjectURL(url)
-      if (dur < 6) {
-        setFileError("File is too short — minimum 6 seconds of clean speech.")
-        setSelectedFile(null); setFileDuration(null); return
-      }
-      if (dur > 120) {
-        setFileError("File is too long — maximum 2 minutes. Trim to the best 10–30 seconds.")
-        setSelectedFile(null); setFileDuration(null); return
-      }
+      if (dur < 6) { setFileError("Too short — minimum 6 seconds."); setSelectedFile(null); setFileDuration(null); return }
+      if (dur > 120) { setFileError("Too long — maximum 2 minutes."); setSelectedFile(null); setFileDuration(null); return }
       setFileDuration(dur)
     }
-    audio.onerror = () => { setFileError("Could not read audio file — try a WAV or MP3."); setSelectedFile(null) }
+    audio.onerror = () => { setFileError("Could not read file — try WAV or MP3."); setSelectedFile(null) }
+  }
+
+  const handleRecorded = (file: File, duration: number) => {
+    setSelectedFile(file)
+    setFileDuration(duration)
+    setFileError(null)
   }
 
   const handleUpload = async () => {
@@ -168,7 +258,7 @@ export default function VoiceCloningPage() {
   }
 
   const handleDelete = async (cloneId: string) => {
-    if (!confirm("Delete this voice clone? This cannot be undone.")) return
+    if (!confirm("Delete this voice clone?")) return
     setDeletingId(cloneId)
     try {
       await api.delete(`/cloning/${cloneId}`)
@@ -178,25 +268,23 @@ export default function VoiceCloningPage() {
   }
 
   const handleRemoveShared = async (accessId: string) => {
-    if (!confirm("Remove this shared voice from your library?")) return
+    if (!confirm("Remove this shared voice?")) return
     try {
       await api.delete(`/cloning/shared-with-me/${accessId}`)
       await fetchAll()
-    } catch { alert("Could not remove shared voice") }
+    } catch { alert("Could not remove") }
   }
 
-  if (isLoading) {
-    return (
-      <div className="max-w-3xl mx-auto animate-pulse">
-        <div className="h-8 w-56 bg-white/10 rounded mb-2" />
-        <div className="h-4 w-72 bg-white/5 rounded mb-8" />
-        <div className="h-48 bg-white/5 rounded-xl mb-4" />
-        <div className="h-48 bg-white/5 rounded-xl" />
-      </div>
-    )
-  }
+  if (isLoading) return (
+    <div className="max-w-3xl mx-auto animate-pulse">
+      <div className="h-8 w-56 bg-white/10 rounded mb-2" />
+      <div className="h-4 w-72 bg-white/5 rounded mb-8" />
+      <div className="h-48 bg-white/5 rounded-xl mb-4" />
+      <div className="h-48 bg-white/5 rounded-xl" />
+    </div>
+  )
 
-  const atLimit = clones.length >= 3
+  const atLimit = clones.length >= MAX_CLONES
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -208,32 +296,40 @@ export default function VoiceCloningPage() {
         <p className="text-white/50 mt-1">Clone any voice from a short audio clip and share it with others</p>
       </div>
 
-      {/* Info banner */}
       <div className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-xl px-5 py-4 mb-6">
         <Info className="w-4 h-4 text-white/30 shrink-0 mt-0.5" />
         <div className="text-white/40 text-sm leading-relaxed">
-          Upload a <span className="text-white/60">6–120 second</span> clean audio clip — single speaker, no music or background noise.
-          Free accounts get <span className="text-white/60">3 voice clones</span>. Shared voices can be used by others with their own credits.
+          Upload or record a <span className="text-white/60">6–120 second</span> clean audio clip — single speaker, no background noise.
+          Shared voices can be used by others with their own credits.
         </div>
       </div>
 
-      {/* ── Upload section ────────────────────────────────────────────────── */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-white font-medium text-sm">Create a new voice clone</p>
-          <span className={`text-xs px-2 py-1 rounded-full ${atLimit ? "bg-orange-500/10 text-orange-400" : "bg-white/5 text-white/30"}`}>
-            {clones.length} / 3 used
-          </span>
-        </div>
+      {/* ── Upload / Record section ───────────────────────────────────────── */}
+      {!atLimit && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5 mb-6">
+          <p className="text-white font-medium text-sm mb-4">Create a new voice clone</p>
 
-        {atLimit ? (
-          <div className="text-center py-6 text-white/30 text-sm">
-            You've reached the limit of 3 free voice clones.<br />
-            Delete an existing clone to create a new one.
+          {/* Mode toggle */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => { setInputMode("upload"); setSelectedFile(null); setFileDuration(null); setFileError(null) }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                inputMode === "upload" ? "bg-violet-600/20 text-violet-300 border border-violet-500/30" : "bg-white/5 text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Upload className="w-3.5 h-3.5" /> Upload file
+            </button>
+            <button
+              onClick={() => { setInputMode("record"); setSelectedFile(null); setFileDuration(null); setFileError(null) }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                inputMode === "record" ? "bg-violet-600/20 text-violet-300 border border-violet-500/30" : "bg-white/5 text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5" /> Record now
+            </button>
           </div>
-        ) : (
+
           <div className="flex flex-col gap-3">
-            {/* Name */}
             <input
               value={uploadName}
               onChange={e => setUploadName(e.target.value)}
@@ -241,36 +337,39 @@ export default function VoiceCloningPage() {
               className="bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/20 focus:border-violet-500/50 w-full"
             />
 
-            {/* File drop zone */}
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl px-6 py-8 text-center cursor-pointer transition-colors ${
-                selectedFile ? "border-violet-500/40 bg-violet-600/5" : "border-white/10 hover:border-violet-500/30 hover:bg-white/[0.02]"
-              }`}
-            >
-              {selectedFile ? (
-                <div className="flex flex-col items-center gap-2">
-                  <Mic className="w-8 h-8 text-violet-400" />
-                  <p className="text-white text-sm font-medium">{selectedFile.name}</p>
-                  {fileDuration && (
-                    <p className="text-white/40 text-xs">{formatDuration(fileDuration)} — looks good ✓</p>
+            {inputMode === "upload" ? (
+              <>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl px-6 py-8 text-center cursor-pointer transition-colors ${
+                    selectedFile ? "border-violet-500/40 bg-violet-600/5" : "border-white/10 hover:border-violet-500/30"
+                  }`}
+                >
+                  {selectedFile ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Mic className="w-8 h-8 text-violet-400" />
+                      <p className="text-white text-sm font-medium">{selectedFile.name}</p>
+                      {fileDuration && <p className="text-white/40 text-xs">{formatDuration(fileDuration)} ✓</p>}
+                      <button
+                        onClick={e => { e.stopPropagation(); setSelectedFile(null); setFileDuration(null); if (fileInputRef.current) fileInputRef.current.value = "" }}
+                        className="text-white/20 hover:text-red-400 transition-colors mt-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-white/30">
+                      <Upload className="w-8 h-8" />
+                      <p className="text-sm">Click to upload WAV or MP3</p>
+                      <p className="text-xs">6 seconds minimum · 2 minutes maximum</p>
+                    </div>
                   )}
-                  <button
-                    onClick={e => { e.stopPropagation(); setSelectedFile(null); setFileDuration(null); if (fileInputRef.current) fileInputRef.current.value = "" }}
-                    className="text-white/20 hover:text-red-400 transition-colors mt-1"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2 text-white/30">
-                  <Upload className="w-8 h-8" />
-                  <p className="text-sm">Click to upload WAV or MP3</p>
-                  <p className="text-xs">6 seconds minimum · 2 minutes maximum · single speaker</p>
-                </div>
-              )}
-            </div>
-            <input ref={fileInputRef} type="file" accept="audio/wav,audio/mp3,audio/mpeg" className="hidden" onChange={handleFileChange} />
+                <input ref={fileInputRef} type="file" accept="audio/wav,audio/mp3,audio/mpeg" className="hidden" onChange={handleFileChange} />
+              </>
+            ) : (
+              <VoiceRecorder onRecorded={handleRecorded} />
+            )}
 
             {fileError && <p className="text-red-400 text-xs">{fileError}</p>}
 
@@ -280,29 +379,26 @@ export default function VoiceCloningPage() {
               className="flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-3 rounded-xl transition-colors"
             >
               <Plus className="w-4 h-4" />
-              {isUploading ? "Uploading..." : "Create Voice Clone"}
+              {isUploading ? "Creating..." : "Create Voice Clone"}
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* ── My Clones ────────────────────────────────────────────────────── */}
+      {/* ── My Clones ─────────────────────────────────────────────────────── */}
       <div className="mb-6">
         <h2 className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-3">My Voices</h2>
         {clones.length === 0 ? (
           <div className="bg-white/5 border border-white/10 rounded-xl py-10 text-center text-white/25 text-sm">
-            No voice clones yet — upload one above.
+            No voice clones yet — upload or record one above.
           </div>
         ) : (
           <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
             {clones.map((clone, i) => (
               <div key={clone.id} className={`flex items-center gap-4 px-5 py-4 ${i < clones.length - 1 ? "border-b border-white/5" : ""}`}>
-                {/* Avatar */}
                 <div className="w-9 h-9 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0">
                   <Mic className="w-4 h-4 text-violet-400" />
                 </div>
-
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium">{clone.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -315,8 +411,6 @@ export default function VoiceCloningPage() {
                       </span>
                     )}
                   </div>
-
-                  {/* Share link row */}
                   {clone.is_shared && shareLinks[clone.id] && (
                     <div className="flex items-center gap-2 mt-1.5 bg-white/5 rounded-lg px-3 py-1.5 max-w-sm">
                       <p className="text-white/30 text-xs font-mono truncate flex-1">{shareLinks[clone.id]}</p>
@@ -324,38 +418,28 @@ export default function VoiceCloningPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <AudioPreviewButton cloneId={clone.id} />
-
-                  {/* Use button */}
                   <a
                     href={`/generate?voice=clone_${clone.id}`}
                     className="flex items-center gap-1 text-xs bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 px-2.5 py-1.5 rounded-lg transition-colors"
-                    title="Use this voice"
                   >
                     Use
                   </a>
-
                   <button
                     onClick={() => handleToggleShare(clone.id)}
                     disabled={togglingShare === clone.id}
                     className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-                      clone.is_shared
-                        ? "bg-violet-500/20 text-violet-400 hover:bg-red-500/20 hover:text-red-400"
-                        : "bg-white/10 text-white/40 hover:bg-violet-500/20 hover:text-violet-300"
+                      clone.is_shared ? "bg-violet-500/20 text-violet-400 hover:bg-red-500/20 hover:text-red-400" : "bg-white/10 text-white/40 hover:bg-violet-500/20 hover:text-violet-300"
                     }`}
-                    title={clone.is_shared ? "Disable sharing" : "Share this voice"}
+                    title={clone.is_shared ? "Disable sharing" : "Share"}
                   >
                     <Share2 className="w-3.5 h-3.5" />
                   </button>
-
                   <button
                     onClick={() => handleDelete(clone.id)}
                     disabled={deletingId === clone.id}
                     className="w-7 h-7 rounded-full bg-white/5 text-white/25 hover:bg-red-500/20 hover:text-red-400 flex items-center justify-center transition-all"
-                    title="Delete clone"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -370,14 +454,11 @@ export default function VoiceCloningPage() {
       <div>
         <h2 className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-3">
           Shared With Me
-          {sharedWithMe.length > 0 && (
-            <span className="ml-2 text-violet-400">{sharedWithMe.length}</span>
-          )}
+          {sharedWithMe.length > 0 && <span className="ml-2 text-violet-400">{sharedWithMe.length}</span>}
         </h2>
         {sharedWithMe.length === 0 ? (
           <div className="bg-white/5 border border-white/10 rounded-xl py-10 text-center text-white/25 text-sm">
-            No voices shared with you yet.<br />
-            Ask a friend to share their clone link.
+            No voices shared with you yet.
           </div>
         ) : (
           <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
@@ -392,18 +473,15 @@ export default function VoiceCloningPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <AudioPreviewButton cloneId={v.clone_id} />
-
                   <a
                     href={`/generate?voice=clone_${v.clone_id}`}
                     className="flex items-center gap-1 text-xs bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 px-2.5 py-1.5 rounded-lg transition-colors"
-                    title="Use this voice"
                   >
                     Use
                   </a>
                   <button
                     onClick={() => handleRemoveShared(v.access_id)}
                     className="w-7 h-7 rounded-full bg-white/5 text-white/25 hover:bg-red-500/20 hover:text-red-400 flex items-center justify-center transition-all"
-                    title="Remove from library"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
