@@ -105,6 +105,7 @@ function VoicePicker({
   })
 
   const groups = activeModel === "standard" ? STANDARD_GROUPS : CHARACTER_GROUPS
+  const cloneVoices = voices.filter(v => v.is_clone)
 
   return (
     <>
@@ -175,6 +176,45 @@ function VoicePicker({
 
           {/* Voice list */}
           <div className="overflow-y-auto flex-1 border-t border-white/5">
+
+            {/* My Cloned Voices */}
+            {cloneVoices.length > 0 && (
+              <div>
+                <div className="px-5 py-2 bg-white/[0.02] border-b border-white/5 sticky top-0">
+                  <span className="text-violet-400/60 text-xs font-medium uppercase tracking-widest">
+                    ⚡ My Cloned Voices
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  {cloneVoices.map((v) => {
+                    const isSelected = selected?.id === v.id
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => { onSelect(v); onClose() }}
+                        className={`flex items-center gap-3 px-5 py-3.5 border-b border-white/5 transition-colors text-left w-full ${
+                          isSelected ? "bg-violet-600/15" : "hover:bg-white/[0.03]"
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-medium flex-shrink-0 text-violet-300">
+                          {v.name.replace("⚡ ", "").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className={`text-sm font-medium truncate ${isSelected ? "text-white" : "text-white/80"}`}>
+                              {v.name}
+                            </p>
+                            {isSelected && <Check className="w-3 h-3 text-violet-400 flex-shrink-0" />}
+                          </div>
+                          <p className="text-white/30 text-xs truncate">{v.accent}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {groups.map((group) => {
               const groupVoices = group.ids.map(id => voiceMap[id]).filter(Boolean)
               if (!groupVoices.length) return null
@@ -290,7 +330,15 @@ export default function GeneratePage() {
         const cachedVoiceId = localStorage.getItem(VOICE_CACHE_KEY)
         const match = allVoices.find((x: Voice) => x.id === cachedVoiceId)
         setSelectedVoice(match ?? allVoices[0])
-        if (!match) localStorage.removeItem(VOICE_CACHE_KEY)
+        // Check for ?voice= URL param (from "Use" button on cloning page)
+        const urlParams = new URLSearchParams(window.location.search)
+        const voiceParam = urlParams.get("voice")
+        if (voiceParam) {
+          const paramMatch = allVoices.find((x: Voice) => x.id === voiceParam)
+          if (paramMatch) setSelectedVoice(paramMatch)
+        } else if (!match) {
+          localStorage.removeItem(VOICE_CACHE_KEY)
+        }
       } catch {
         setVoices(v)
         const cachedVoiceId = localStorage.getItem(VOICE_CACHE_KEY)

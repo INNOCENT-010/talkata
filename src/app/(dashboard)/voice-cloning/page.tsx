@@ -329,6 +329,15 @@ export default function VoiceCloningPage() {
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <AudioPreviewButton cloneId={clone.id} />
 
+                  {/* Use button */}
+                  <a
+                    href={`/generate?voice=clone_${clone.id}`}
+                    className="flex items-center gap-1 text-xs bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 px-2.5 py-1.5 rounded-lg transition-colors"
+                    title="Use this voice"
+                  >
+                    Use
+                  </a>
+
                   <button
                     onClick={() => handleToggleShare(clone.id)}
                     disabled={togglingShare === clone.id}
@@ -383,6 +392,14 @@ export default function VoiceCloningPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <AudioPreviewButton cloneId={v.clone_id} />
+
+                  <a
+                    href={`/generate?voice=clone_${v.clone_id}`}
+                    className="flex items-center gap-1 text-xs bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 px-2.5 py-1.5 rounded-lg transition-colors"
+                    title="Use this voice"
+                  >
+                    Use
+                  </a>
                   <button
                     onClick={() => handleRemoveShared(v.access_id)}
                     className="w-7 h-7 rounded-full bg-white/5 text-white/25 hover:bg-red-500/20 hover:text-red-400 flex items-center justify-center transition-all"
