@@ -59,8 +59,19 @@ function AudioPreviewButton({ cloneId }: { cloneId: string }) {
       return
     }
     try {
-      const res = await api.get(`/cloning/${cloneId}/url`)
-      const audio = new Audio(res.data.url)
+      const token = localStorage.getItem("token")
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+      const streamUrl = `${API}/cloning/${cloneId}/stream`
+      const audio = new Audio()
+      audio.src = streamUrl
+      // Add auth header via fetch then create blob URL
+      const response = await fetch(streamUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!response.ok) throw new Error("Could not load preview")
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      audio.src = blobUrl
       audioRef.current = audio
       audio.play()
       setPlaying(true)
@@ -68,7 +79,14 @@ function AudioPreviewButton({ cloneId }: { cloneId: string }) {
     } catch { alert("Could not load preview") }
   }
 
-  useEffect(() => () => { if (audioRef.current) audioRef.current.pause() }, [])
+  useEffect(() => () => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      if (audioRef.current.src.startsWith("blob:")) {
+        URL.revokeObjectURL(audioRef.current.src)
+      }
+    }
+  }, [])
 
   return (
     <button
