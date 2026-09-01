@@ -14,9 +14,9 @@ interface Plan {
 }
 
 const PLAN_META: Record<string, { chars: string; hours: string }> = {
-  starter: { chars: "1,000,000", hours: "6.2" },
-  pro:     { chars: "3,000,000", hours: "18.5" },
-  studio:  { chars: "8,000,000", hours: "49" },
+  starter: { chars: "1,000,000", hours: "~13" },
+  pro:     { chars: "3,000,000", hours: "~40" },
+  studio:  { chars: "8,000,000", hours: "~106" },
 }
 
 export default function CreditsPage() {
@@ -112,12 +112,13 @@ export default function CreditsPage() {
               </div>
 
               <Button
-                onClick={() => handlePurchase(plan.id)}
-                isLoading={isLoading === plan.id}
+                onClick={() => {}}
+                disabled={true}
                 variant={isPopular ? "primary" : "secondary"}
-                className="w-full"
+                className="w-full opacity-40 cursor-not-allowed"
+                title="Payments coming soon"
               >
-                Get Started
+                Coming Soon
               </Button>
             </div>
           )
