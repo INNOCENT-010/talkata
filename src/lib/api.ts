@@ -60,8 +60,12 @@ export const developerAPI = {
 export const creditsAPI = {
   balance: () => api.get("/credits/balance"),
   plans: () => api.get("/credits/plans"),
-  initialize: (planId: string) => api.post(`/credits/initialize/${planId}`),
-  verify: (reference: string) => api.post("/credits/verify", { reference })
+  createLemonCheckout: (planId: string) => api.post(`/credits/lemon-squeezy/checkouts/${planId}`),
+  createCryptoInvoice: (planId: string, chain: "bep20" | "trc20") =>
+    api.post("/credits/crypto/invoices", { plan_id: planId, chain }),
+  cryptoInvoice: (invoiceId: string) => api.get(`/credits/crypto/invoices/${invoiceId}`),
+  verifyCryptoInvoice: (invoiceId: string, transactionHash: string) =>
+    api.post(`/credits/crypto/invoices/${invoiceId}/verify`, { transaction_hash: transactionHash }),
 }
 
 export default api

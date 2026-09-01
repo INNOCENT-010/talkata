@@ -1,5 +1,6 @@
 "use client"
 
+import axios from "axios"
 import { useEffect, useState } from "react"
 import { creditsAPI } from "@/lib/api"
 import { useAuthStore } from "@/store/authStore"
@@ -13,6 +14,25 @@ interface Plan {
   credits: number
 }
 
+type CryptoChain = "bep20" | "trc20"
+
+interface CryptoInvoice {
+  id: string
+  plan_id: string
+  credits: number
+  chain: CryptoChain
+  receiving_address: string
+  expected_amount_usdt: string
+  expires_at: string
+  status: "pending" | "paid" | "expired" | "failed"
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback
+  const detail = error.response?.data?.detail
+  return typeof detail === "string" ? detail : fallback
+}
+
 const PLAN_META: Record<string, { chars: string; hours: string }> = {
   starter: { chars: "1,000,000", hours: "~13" },
   pro:     { chars: "3,000,000", hours: "~40" },
@@ -22,22 +42,59 @@ const PLAN_META: Record<string, { chars: string; hours: string }> = {
 export default function CreditsPage() {
   const { user } = useAuthStore()
   const [plans, setPlans] = useState<Plan[]>([])
-  const [isLoading, setIsLoading] = useState<string | null>(null)
+  const [lemonLoading, setLemonLoading] = useState<string | null>(null)
+  const [cryptoPlanId, setCryptoPlanId] = useState("starter")
+  const [cryptoChain, setCryptoChain] = useState<CryptoChain>("bep20")
+  const [cryptoInvoice, setCryptoInvoice] = useState<CryptoInvoice | null>(null)
+  const [cryptoLoading, setCryptoLoading] = useState(false)
+  const [transactionHash, setTransactionHash] = useState("")
+  const [cryptoError, setCryptoError] = useState<string | null>(null)
 
   useEffect(() => {
     creditsAPI.plans().then((res) => setPlans(res.data.plans))
   }, [])
 
-  const handlePurchase = async (planId: string) => {
-    setIsLoading(planId)
+  const createCryptoInvoice = async () => {
+    setCryptoLoading(true)
+    setCryptoError(null)
     try {
-      const res = await creditsAPI.initialize(planId)
-      window.location.href = res.data.authorization_url
-    } catch {
-      alert("Payment initialization failed. Please try again.")
+      const res = await creditsAPI.createCryptoInvoice(cryptoPlanId, cryptoChain)
+      setCryptoInvoice(res.data)
+      setTransactionHash("")
+    } catch (error: unknown) {
+      setCryptoError(getErrorMessage(error, "Could not create crypto invoice. Please try again."))
     } finally {
-      setIsLoading(null)
+      setCryptoLoading(false)
     }
+  }
+
+  const startLemonCheckout = async (planId: string) => {
+    setLemonLoading(planId)
+    try {
+      const response = await creditsAPI.createLemonCheckout(planId)
+      window.location.assign(response.data.checkout_url)
+    } catch (error: unknown) {
+      setCryptoError(getErrorMessage(error, "Could not start checkout. Please try again."))
+      setLemonLoading(null)
+    }
+  }
+
+  const verifyCryptoPayment = async () => {
+    if (!cryptoInvoice || !transactionHash.trim()) return
+    setCryptoLoading(true)
+    setCryptoError(null)
+    try {
+      const res = await creditsAPI.verifyCryptoInvoice(cryptoInvoice.id, transactionHash.trim())
+      setCryptoInvoice((current) => current ? { ...current, status: res.data.status } : current)
+    } catch (error: unknown) {
+      setCryptoError(getErrorMessage(error, "Payment has not been confirmed yet."))
+    } finally {
+      setCryptoLoading(false)
+    }
+  }
+
+  const copyAddress = async () => {
+    if (cryptoInvoice) await navigator.clipboard.writeText(cryptoInvoice.receiving_address)
   }
 
   const features = [
@@ -112,17 +169,60 @@ export default function CreditsPage() {
               </div>
 
               <Button
-                onClick={() => {}}
-                disabled={true}
+                onClick={() => startLemonCheckout(plan.id)}
+                isLoading={lemonLoading === plan.id}
+                disabled={lemonLoading !== null}
                 variant={isPopular ? "primary" : "secondary"}
-                className="w-full opacity-40 cursor-not-allowed"
-                title="Payments coming soon"
+                className="w-full"
               >
-                Coming Soon
+                Buy with card
               </Button>
             </div>
           )
         })}
+      </div>
+
+      <div className="mb-6 rounded-xl border border-violet-500/30 bg-violet-600/10 p-5">
+        <div className="mb-4">
+          <p className="text-sm font-semibold text-white">Pay with USDT</p>
+          <p className="mt-1 text-xs text-white/50">Choose BEP-20 or TRC-20. The exact amount is unique to your invoice.</p>
+        </div>
+
+        {!cryptoInvoice || cryptoInvoice.status !== "pending" ? (
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <select value={cryptoPlanId} onChange={(event) => setCryptoPlanId(event.target.value)} className="rounded-lg border border-white/10 bg-[#17172a] px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500">
+              {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.label} — ${plan.amount_usd}</option>)}
+            </select>
+            <select value={cryptoChain} onChange={(event) => setCryptoChain(event.target.value as CryptoChain)} className="rounded-lg border border-white/10 bg-[#17172a] px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500">
+              <option value="bep20">USDT · BEP-20 (BNB Smart Chain)</option>
+              <option value="trc20">USDT · TRC-20 (TRON)</option>
+            </select>
+            <Button onClick={createCryptoInvoice} isLoading={cryptoLoading} disabled={plans.length === 0}>Create invoice</Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-black/25 p-4">
+              <p className="text-xs text-white/40">Send exactly</p>
+              <p className="mt-1 text-2xl font-bold text-white">{cryptoInvoice.expected_amount_usdt} USDT</p>
+              <p className="mt-3 text-xs text-white/40">Network</p>
+              <p className="text-sm text-violet-300">{cryptoInvoice.chain === "bep20" ? "BEP-20 (BNB Smart Chain)" : "TRC-20 (TRON)"}</p>
+              <p className="mt-3 text-xs text-white/40">Receiving address</p>
+              <div className="mt-1 flex items-center gap-2">
+                <code className="min-w-0 flex-1 break-all text-xs text-white/80">{cryptoInvoice.receiving_address}</code>
+                <Button onClick={copyAddress} variant="secondary" size="sm">Copy</Button>
+              </div>
+              <p className="mt-3 text-xs text-yellow-300/80">Expires {new Date(cryptoInvoice.expires_at).toLocaleString()}</p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input value={transactionHash} onChange={(event) => setTransactionHash(event.target.value)} placeholder="Paste the transaction hash after sending" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#17172a] px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-violet-500" />
+              <Button onClick={verifyCryptoPayment} isLoading={cryptoLoading} disabled={!transactionHash.trim()}>Verify payment</Button>
+            </div>
+          </div>
+        )}
+
+        {cryptoInvoice?.status === "paid" && <p className="mt-4 text-sm text-green-400">Payment confirmed. Credits have been added to your balance.</p>}
+        {cryptoError && <p className="mt-3 text-sm text-red-400">{cryptoError}</p>}
       </div>
 
       {/* Features */}

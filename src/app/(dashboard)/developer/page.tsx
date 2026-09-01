@@ -249,7 +249,7 @@ export default function DeveloperPage() {
           <Terminal className="w-6 h-6 text-violet-400" />
           Developer
         </h1>
-        <p className="text-white/50 mt-1">Build with Talkata — $4 per 1M characters via API</p>
+        <p className="text-white/50 mt-1">Build with Talkata — $2 per 1M characters via API</p>
       </div>
 
       {/* Stat strip */}
@@ -377,12 +377,12 @@ export default function DeveloperPage() {
           <div className="bg-white/5 border border-white/10 rounded-xl p-5">
             <p className="text-white/60 text-sm mb-1">API Pricing</p>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-white text-3xl font-bold">$4</span>
+              <span className="text-white text-3xl font-bold">$2</span>
               <span className="text-white/40 text-sm">per 1,000,000 characters</span>
             </div>
-            <p className="text-white/30 text-xs mt-2">Billed from your credit balance. 1M chars = 800,000 credits.</p>
+            <p className="text-white/30 text-xs mt-2">Billed from your credit balance. 1M chars = 666,667 credits.</p>
             <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 gap-3 text-sm">
-              <div><p className="text-white/40 text-xs">Min charge per call</p><p className="text-white">80 credits</p></div>
+              <div><p className="text-white/40 text-xs">Min charge per call</p><p className="text-white">67 credits</p></div>
               <div><p className="text-white/40 text-xs">Rate limit</p><p className="text-white">60 req / min</p></div>
               <div><p className="text-white/40 text-xs">Max text per call</p><p className="text-white">No hard limit</p></div>
               <div><p className="text-white/40 text-xs">Response format</p><p className="text-white">audio/wav</p></div>
