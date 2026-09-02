@@ -6,8 +6,17 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Talkata — AI Voice Generation",
-  description: "Generate natural sounding voice from text instantly",
+  metadataBase: new URL("https://talkata.space"),
+  title: { default: "Talkata | Text to Speech", template: "%s | Talkata" },
+  description: "Turn scripts, articles, and product copy into natural sounding audio with Talkata.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "Talkata",
+    title: "Talkata | Text to Speech",
+    description: "Text to speech for creators, teams, and developers.",
+    url: "https://talkata.space",
+  },
   icons: {
     icon: "/favicon.svg",
     apple: "/favicon.svg",

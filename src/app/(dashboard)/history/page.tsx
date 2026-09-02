@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useCallback, useEffect, useState, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { generateAPI } from "@/lib/api"
 import { formatDate } from "@/lib/utils"
-import { History, Play, Pause, Download, Info, Clock, Mic2, Zap } from "lucide-react"
+import { History, Play, Pause, Download, Info, Mic2, Zap } from "lucide-react"
 import { useAudioStore } from "@/store/audioStore"
 
 interface Job {
@@ -19,12 +19,10 @@ interface Job {
   voice_name?: string
 }
 
-function formatDuration(seconds: number): string | null {
-  if (!seconds || seconds === 0) return null
-  if (seconds < 60) return `${Math.round(seconds)}s`
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.round(seconds % 60)
-  return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
+function formatDuration(seconds?: number | null): string {
+  if (!seconds || !Number.isFinite(seconds)) return "0:00"
+  const rounded = Math.max(0, Math.floor(seconds))
+  return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}`
 }
 
 function formatVoiceName(raw?: string): string {
@@ -41,48 +39,50 @@ function AudioPlayer({ job, isPlaying, onToggle }: {
   const [progress, setProgress] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [audioDuration, setAudioDuration] = useState<number | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audio = useAudioStore((state) => state.audio)
+  const audioId = useAudioStore((state) => state.audioId)
+  const seekAudio = useAudioStore((state) => state.seek)
+  const ownsAudio = audioId === job.id && audio !== null
 
   useEffect(() => {
-    if (!isPlaying) {
-      setProgress(0)
-      setCurrentTime(0)
-      return
-    }
-  }, [isPlaying])
-
-  // Wire up to parent audio element via data attribute — simpler than lifting state
-  useEffect(() => {
-    const audio = (window as any).__talkataAudio as HTMLAudioElement | undefined
-    if (!audio) return
+    if (!audio || !ownsAudio) return
 
     const onTime = () => {
-      if (audio.duration) {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
         setProgress((audio.currentTime / audio.duration) * 100)
         setCurrentTime(audio.currentTime)
         setAudioDuration(audio.duration)
       }
     }
-    const onLoaded = () => setAudioDuration(audio.duration)
-    const onEnded = () => { setProgress(0); setCurrentTime(0) }
+    const onLoaded = () => {
+      if (Number.isFinite(audio.duration)) setAudioDuration(audio.duration)
+    }
+    const onEnded = () => { setProgress(100); setCurrentTime(audio.duration) }
 
     audio.addEventListener("timeupdate", onTime)
     audio.addEventListener("loadedmetadata", onLoaded)
+    audio.addEventListener("durationchange", onLoaded)
     audio.addEventListener("ended", onEnded)
     return () => {
       audio.removeEventListener("timeupdate", onTime)
       audio.removeEventListener("loadedmetadata", onLoaded)
+      audio.removeEventListener("durationchange", onLoaded)
       audio.removeEventListener("ended", onEnded)
     }
-  }, [isPlaying])
+  }, [audio, ownsAudio])
 
-  const displayDuration = audioDuration
-    ? formatDuration(audioDuration)
-    : formatDuration(job.duration_seconds ?? 0)
+  const displayDuration = audioDuration || job.duration_seconds || 0
+  const displayCurrent = ownsAudio ? currentTime : 0
+  const displayProgress = ownsAudio ? progress : 0
 
-  const displayCurrent = isPlaying && currentTime > 0
-    ? formatDuration(currentTime)
-    : null
+  const seek = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!audio || !ownsAudio || !Number.isFinite(audio.duration) || audio.duration <= 0) return
+    const nextProgress = Number(event.target.value)
+    const nextTime = (nextProgress / 100) * audio.duration
+    seekAudio(job.id, nextTime)
+    setProgress(nextProgress)
+    setCurrentTime(nextTime)
+  }
 
   return (
     <div className="flex items-center gap-2 min-w-0">
@@ -97,21 +97,23 @@ function AudioPlayer({ job, isPlaying, onToggle }: {
         }
       </button>
 
-      {/* Progress bar + time */}
+      {/* Draggable progress bar + elapsed / total duration */}
       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-violet-500 rounded-full transition-all duration-100"
-            style={{ width: `${isPlaying ? progress : 0}%` }}
-          />
-        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="0.1"
+          value={displayProgress}
+          onChange={seek}
+          disabled={!ownsAudio || !displayDuration}
+          aria-label={`Seek audio: ${formatDuration(displayCurrent)} of ${formatDuration(displayDuration)}`}
+          className="talkata-audio-range h-4 w-full cursor-pointer disabled:cursor-not-allowed"
+          style={{ background: `linear-gradient(to right, #8b5cf6 ${displayProgress}%, rgba(255,255,255,.12) ${displayProgress}%)` }}
+        />
         <div className="flex items-center justify-between">
-          <span className="text-white/30 text-xs">
-            {displayCurrent ?? "0s"}
-          </span>
-          {displayDuration && (
-            <span className="text-white/30 text-xs">{displayDuration}</span>
-          )}
+          <span className="text-white/40 text-[11px] tabular-nums">{formatDuration(displayCurrent)}</span>
+          <span className="text-white/40 text-[11px] tabular-nums">{formatDuration(displayDuration)}</span>
         </div>
       </div>
 
@@ -137,15 +139,20 @@ export default function HistoryPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const { playingId, toggle } = useAudioStore()
   const pollRef = useRef<NodeJS.Timeout | null>(null)
+  const [now] = useState(() => Date.now())
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     const res = await generateAPI.history()
     setJobs(res.data.jobs)
     return res.data.jobs
-  }
+  }, [])
 
   useEffect(() => {
-    fetchJobs().finally(() => setIsLoading(false))
+    const load = async () => {
+      try { await fetchJobs() }
+      finally { setIsLoading(false) }
+    }
+    void load()
     if (isProcessing) {
       pollRef.current = setInterval(async () => {
         const latest = await fetchJobs()
@@ -156,7 +163,7 @@ export default function HistoryPage() {
       }, 3000)
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [])
+  }, [fetchJobs, isProcessing])
 
   useEffect(() => {
     const hasActive = jobs.some(j => j.status === "queued" || j.status === "processing")
@@ -169,12 +176,12 @@ export default function HistoryPage() {
         if (!stillActive) { clearInterval(pollRef.current!); pollRef.current = null }
       }, 3000)
     }
-  }, [jobs])
+  }, [fetchJobs, jobs])
 
   const isExpiringSoon = (dateStr: string) => {
     const created = new Date(dateStr)
     const expires = new Date(created.getTime() + 30 * 24 * 60 * 60 * 1000)
-    const daysLeft = Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    const daysLeft = Math.ceil((expires.getTime() - now) / (1000 * 60 * 60 * 24))
     return daysLeft <= 5 ? daysLeft : null
   }
 
@@ -192,8 +199,11 @@ export default function HistoryPage() {
       setJobs(prev => prev.map(j =>
         j.id === job.id ? { ...j, status: "cancelled" } : j
       ))
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail ?? "Could not cancel job"
+    } catch (err: unknown) {
+      const detail = typeof err === "object" && err !== null && "response" in err
+        && typeof (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail === "string"
+        ? (err as { response: { data: { detail: string } } }).response.data.detail
+        : "Could not cancel job"
       alert(detail)
     } finally {
       setCancellingId(null)
@@ -201,7 +211,6 @@ export default function HistoryPage() {
   }
 
   const hasActiveJobs = jobs.some(j => j.status === "queued" || j.status === "processing")
-  const hasActive = (j: Job) => j.status === "queued" || j.status === "processing"
 
   // ── Status badge ────────────────────────────────────────────────────────────
   const StatusBadge = ({ job }: { job: Job }) => (

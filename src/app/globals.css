@@ -52,3 +52,28 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .motion-float, .motion-float-delayed, .motion-spin-slow, .motion-spin-reverse, .motion-rise-in { animation: none; }
 }
+
+.talkata-audio-range {
+  appearance: none;
+  border-radius: 9999px;
+  height: 4px;
+  outline: none;
+}
+
+.talkata-audio-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 9999px;
+  background: #c4b5fd;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, .18);
+}
+
+.talkata-audio-range::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 0;
+  border-radius: 9999px;
+  background: #c4b5fd;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, .18);
+}

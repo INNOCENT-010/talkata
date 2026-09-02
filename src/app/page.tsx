@@ -1,5 +1,24 @@
-import { redirect } from "next/navigation"
+import type { Metadata } from "next"
+import Link from "next/link"
+import { ArrowRight, AudioLines, Code2, FileText, Mic2 } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "Text to Speech for Creators and Developers",
+  description: "Create clear audio from text. Talkata gives creators and developers a direct way to turn scripts into speech.",
+  alternates: { canonical: "/" },
+}
 
 export default function Home() {
-  redirect("/login")
+  return <main className="min-h-screen overflow-hidden bg-[#090910] text-white">
+    <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 md:px-8"><Brand /><nav className="hidden items-center gap-6 text-sm text-white/60 md:flex"><Link href="/text-to-speech" className="hover:text-white">Text to speech</Link><Link href="/developer-api" className="hover:text-white">API</Link><Link href="/pricing" className="hover:text-white">Pricing</Link></nav><Link href="/register" className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold transition hover:bg-violet-500">Create account</Link></header>
+    <section className="relative mx-auto max-w-6xl px-5 pb-20 pt-16 md:px-8 md:pb-28 md:pt-24"><div className="absolute left-1/2 top-4 -z-0 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-600/20 blur-3xl" /><div className="relative max-w-3xl"><p className="mb-5 text-sm font-medium text-violet-300">Text to speech that holds attention</p><h1 className="text-4xl font-bold leading-[1.05] tracking-tight md:text-7xl">Make every word easier to hear.</h1><p className="mt-6 max-w-2xl text-base leading-7 text-white/60 md:text-lg">Talkata turns your text into clear, natural audio for videos, courses, stories, product demos, and developer products.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/register" className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold transition hover:bg-violet-500">Start creating <ArrowRight className="h-4 w-4" /></Link><Link href="/text-to-speech" className="rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold text-white/75 transition hover:border-white/30 hover:text-white">See how it works</Link></div></div>
+      <div className="relative mt-14 grid gap-3 md:grid-cols-3"><Point icon={FileText} title="Bring the text" body="Paste a script, a page, or a line of dialogue." /><Point icon={Mic2} title="Choose the voice" body="Select a voice that fits the work and your audience." /><Point icon={AudioLines} title="Export the audio" body="Generate, review, and download the file." /></div>
+    </section>
+    <section className="border-y border-white/10 bg-white/[.025]"><div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-2 md:px-8"><div><p className="text-sm font-medium text-violet-300">Built for real production work</p><h2 className="mt-3 text-3xl font-bold tracking-tight">From a rough script to a usable recording.</h2></div><div className="space-y-4 text-sm leading-6 text-white/60"><p>Use Talkata when you need a clean voiceover without setting up a recording session.</p><p>Use the API when audio generation belongs inside your own product or workflow.</p><Link href="/developer-api" className="inline-flex items-center gap-2 font-medium text-violet-300 hover:text-violet-200">Read the API overview <Code2 className="h-4 w-4" /></Link></div></div></section>
+    <footer className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-sm text-white/40 md:flex-row md:items-center md:justify-between md:px-8"><Brand muted /><div className="flex gap-5"><Link href="/pricing" className="hover:text-white">Pricing</Link><Link href="/terms" className="hover:text-white">Terms</Link><Link href="/privacy" className="hover:text-white">Privacy</Link><Link href="/login" className="hover:text-white">Sign in</Link></div></footer>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@type": "SoftwareApplication", name: "Talkata", applicationCategory: "BusinessApplication", operatingSystem: "Web", url: "https://talkata.space", description: "Text to speech for creators, teams, and developers." }) }} />
+  </main>
 }
+
+function Brand({ muted = false }: { muted?: boolean }) { return <Link href="/" className={`flex items-center gap-2 font-semibold ${muted ? "text-white/60" : "text-white"}`}><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600"><Mic2 className="h-4 w-4" /></span>Talkata</Link> }
+function Point({ icon: Icon, title, body }: { icon: typeof Mic2; title: string; body: string }) { return <div className="rounded-2xl border border-white/10 bg-[#11111b] p-5"><Icon className="h-5 w-5 text-violet-300" /><h2 className="mt-4 font-semibold">{title}</h2><p className="mt-2 text-sm leading-6 text-white/50">{body}</p></div> }

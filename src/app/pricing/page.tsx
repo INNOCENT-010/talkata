@@ -1,0 +1,11 @@
+import type { Metadata } from "next"
+import Link from "next/link"
+import { Check, Mic2 } from "lucide-react"
+
+export const metadata: Metadata = { title: "Pricing", description: "Simple Talkata credit plans for text to speech generation.", alternates: { canonical: "/pricing" } }
+
+const plans = [{ name: "Starter", price: "$3", credits: "1,000,000 credits", note: "For a first project" }, { name: "Pro", price: "$10", credits: "3,000,000 credits", note: "For regular production" }, { name: "Studio", price: "$21", credits: "8,000,000 credits", note: "For ongoing work" }]
+
+export default function PricingPage() {
+  return <main className="min-h-screen bg-[#090910] text-white"><header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 md:px-8"><Link href="/" className="flex items-center gap-2 font-semibold"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600"><Mic2 className="h-4 w-4" /></span>Talkata</Link><Link href="/login" className="text-sm text-white/70 hover:text-white">Sign in</Link></header><section className="mx-auto max-w-6xl px-5 pb-20 pt-16 text-center md:px-8 md:pt-24"><p className="text-sm font-medium text-violet-300">Pricing</p><h1 className="mt-4 text-4xl font-bold tracking-tight md:text-6xl">Pay for the work you need to publish.</h1><p className="mx-auto mt-5 max-w-xl text-sm leading-6 text-white/55 md:text-base">Credits do not expire. Card payment will be available after approval. USDT payments are available in the app.</p><div className="mt-12 grid gap-4 text-left md:grid-cols-3">{plans.map((plan) => <article key={plan.name} className="flex flex-col rounded-2xl border border-white/10 bg-white/[.035] p-6"><h2 className="text-lg font-semibold">{plan.name}</h2><p className="mt-4 text-4xl font-bold">{plan.price}</p><p className="mt-1 text-sm text-white/45">{plan.note}</p><div className="mt-6 border-t border-white/10 pt-5"><p className="flex items-center gap-2 text-sm text-white/70"><Check className="h-4 w-4 text-violet-300" />{plan.credits}</p><p className="mt-3 flex items-center gap-2 text-sm text-white/70"><Check className="h-4 w-4 text-violet-300" />Text to speech generation</p></div><Link href="/register" className="mt-8 rounded-xl bg-violet-600 px-4 py-3 text-center text-sm font-semibold hover:bg-violet-500">Create account</Link></article>)}</div></section></main>
+}
