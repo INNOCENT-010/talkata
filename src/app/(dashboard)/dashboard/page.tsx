@@ -1,161 +1,79 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useAuthStore } from "@/store/authStore"
 import { generateAPI } from "@/lib/api"
 import { formatCredits, formatDate } from "@/lib/utils"
-import { Mic2, Zap, History, TrendingUp, Play, Pause } from "lucide-react"
+import { ArrowRight, AudioLines, History, Mic2, Pause, Play, Plus, Sparkles, Zap } from "lucide-react"
 import { useAudioStore } from "@/store/audioStore"
 import Link from "next/link"
-import Button from "@/components/ui/Button"
+
+interface Job {
+  id: string
+  text: string
+  status: string
+  created_at: string
+  audio_url?: string
+}
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
-  const [recentJobs, setRecentJobs] = useState<any[]>([])
+  const [recentJobs, setRecentJobs] = useState<Job[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { playingId, toggle } = useAudioStore()
 
-  const handlePlay = (job: any) => {
-    if (!job.audio_url) return
-    toggle(job.id, job.audio_url)
-  }
-
   useEffect(() => {
-    generateAPI.history().then((res) => {
-      setRecentJobs(res.data.jobs.slice(0, 5))
-    }).finally(() => setIsLoading(false))
+    generateAPI.history().then((res) => setRecentJobs((res.data.jobs || []).slice(0, 5))).finally(() => setIsLoading(false))
   }, [])
 
-  const stats = [
-    {
-      label: "Credits Remaining",
-      value: formatCredits(user?.credits ?? 0),
-      icon: Zap,
-      color: "text-violet-400",
-      bg: "bg-violet-600/10 border-violet-500/20"
-    },
-    {
-      label: "Generations Today",
-      value: recentJobs.filter(j => 
-        new Date(j.created_at).toDateString() === new Date().toDateString()
-      ).length,
-      icon: Mic2,
-      color: "text-blue-400",
-      bg: "bg-blue-600/10 border-blue-500/20"
-    },
-    {
-      label: "Total Generations",
-      value: recentJobs.length,
-      icon: TrendingUp,
-      color: "text-green-400",
-      bg: "bg-green-600/10 border-green-500/20"
-    },
-  ]
+  const todayJobs = useMemo(() => recentJobs.filter((job) => new Date(job.created_at).toDateString() === new Date().toDateString()).length, [recentJobs])
+  const firstName = user?.full_name?.split(" ")[0] || "Creative"
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">
-          Welcome back, {user?.full_name?.split(" ")[0]} 👋
-        </h1>
-        <p className="text-white/50 mt-1">Here's what's happening with your account</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {stats.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className={`border rounded-xl p-5 ${bg}`}>
-            <div className="flex items-center gap-3 mb-3">
-              <Icon className={`w-5 h-5 ${color}`} />
-              <span className="text-white/60 text-sm">{label}</span>
-            </div>
-            <p className="text-white text-2xl font-bold truncate">{value}</p>
+    <div className="mx-auto max-w-6xl space-y-5 pb-10">
+      <section className="relative overflow-hidden rounded-3xl border border-violet-400/20 bg-gradient-to-br from-violet-700/35 via-[#191729] to-[#11111b] p-6 md:p-8">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-fuchsia-400/15 blur-3xl motion-float" />
+        <div className="absolute bottom-0 right-1/4 h-32 w-32 rounded-full bg-blue-400/10 blur-2xl motion-float-delayed" />
+        <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-violet-100"><Sparkles className="h-3.5 w-3.5" /> Creative studio</div>
+            <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Good to see you, {firstName}.</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/60">Turn your next idea into a voice that feels ready to publish.</p>
           </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <h3 className="text-white font-semibold mb-2">Generate Voice</h3>
-          <p className="text-white/50 text-sm mb-4">
-            Turn your text into natural sounding speech instantly
-          </p>
-          <Link href="/generate">
-            <Button size="sm">Start Generating</Button>
-          </Link>
+          <Link href="/generate" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-violet-800 transition hover:bg-violet-50"><Plus className="h-4 w-4" /> New generation</Link>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <h3 className="text-white font-semibold mb-2">Buy Credits</h3>
-          <p className="text-white/50 text-sm mb-4">
-            Top up your credits to keep generating without limits
-          </p>
-          <Link href="/credits">
-            <Button size="sm" variant="secondary">View Plans</Button>
-          </Link>
-        </div>
-      </div>
+      </section>
 
-      {/* Recent Activity */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-semibold">Recent Generations</h3>
-          <Link href="/history" className="text-violet-400 text-sm hover:text-violet-300">
-            View all
-          </Link>
-        </div>
+      <section className="grid gap-3 sm:grid-cols-3">
+        <Metric label="Available credits" value={formatCredits(user?.credits ?? 0)} icon={Zap} tone="violet" />
+        <Metric label="Made today" value={todayJobs} icon={Mic2} tone="blue" />
+        <Metric label="Recent projects" value={recentJobs.length} icon={AudioLines} tone="fuchsia" />
+      </section>
 
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
-          </div>
-        ) : recentJobs.length === 0 ? (
-          <div className="text-center py-8">
-            <History className="w-8 h-8 text-white/20 mx-auto mb-2" />
-            <p className="text-white/40 text-sm">No generations yet</p>
-            <Link href="/generate">
-              <Button size="sm" className="mt-3">Generate your first voice</Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {recentJobs.map((job) => (
-              <div
-                key={job.id}
-                className="flex items-center justify-between py-3 border-b border-white/5 last:border-0"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm truncate">{job.text}</p>
-                  <p className="text-white/40 text-xs mt-0.5">{formatDate(job.created_at)}</p>
-                </div>
-                <div className="flex items-center gap-3 ml-4">
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    job.status === "complete"
-                      ? "bg-green-500/10 text-green-400"
-                      : job.status === "failed"
-                      ? "bg-red-500/10 text-red-400"
-                      : "bg-yellow-500/10 text-yellow-400"
-                  }`}>
-                    {job.status}
-                  </span>
-                  {job.audio_url && (
-                    <button
-                      onClick={() => handlePlay(job)}
-                      className="text-violet-400 hover:text-violet-300 transition-colors"
-                    >
-                      {playingId === job.id
-                        ? <Pause className="w-4 h-4" />
-                        : <Play className="w-4 h-4" />
-                      }
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <section className="grid gap-5 lg:grid-cols-[1.5fr_.8fr]">
+        <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5 md:p-6">
+          <div className="mb-5 flex items-center justify-between"><div><h2 className="font-semibold text-white">Recent generations</h2><p className="mt-1 text-xs text-white/40">Your latest voice work, all in one place.</p></div><Link href="/history" className="inline-flex items-center gap-1 text-sm font-medium text-violet-300 transition hover:text-violet-200">All activity <ArrowRight className="h-3.5 w-3.5" /></Link></div>
+          {isLoading ? <LoadingRows /> : recentJobs.length === 0 ? <EmptyActivity /> : <div className="space-y-1">{recentJobs.map((job, index) => <JobRow key={job.id} job={job} index={index} playing={playingId === job.id} onPlay={() => job.audio_url && toggle(job.id, job.audio_url)} />)}</div>}
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-[#11111a] p-5 md:p-6">
+          <span className="text-xs font-medium uppercase tracking-[.16em] text-violet-300/75">Your workspace</span><h2 className="mt-2 text-xl font-semibold text-white">Keep the momentum.</h2><p className="mt-2 text-sm leading-6 text-white/45">Explore your history, add credit when you need it, or start with a fresh script.</p>
+          <div className="mt-6 space-y-2"><ActionLink href="/generate" icon={Mic2} label="Generate speech" /><ActionLink href="/credits" icon={Zap} label="Add credits" /><ActionLink href="/voice-cloning" icon={Sparkles} label="Voice cloning — soon" muted /></div>
+        </div>
+      </section>
     </div>
   )
 }
+
+function Metric({ label, value, icon: Icon, tone }: { label: string; value: string | number; icon: typeof Zap; tone: "violet" | "blue" | "fuchsia" }) {
+  const colors = { violet: "bg-violet-500/10 text-violet-300", blue: "bg-blue-500/10 text-blue-300", fuchsia: "bg-fuchsia-500/10 text-fuchsia-300" }
+  return <div className="motion-rise-in rounded-2xl border border-white/10 bg-white/[.035] p-4"><div className="flex items-center justify-between"><span className="text-xs text-white/45">{label}</span><span className={`flex h-8 w-8 items-center justify-center rounded-lg ${colors[tone]}`}><Icon className="h-4 w-4" /></span></div><p className="mt-4 text-2xl font-semibold tracking-tight text-white">{value}</p></div>
+}
+
+function JobRow({ job, index, playing, onPlay }: { job: Job; index: number; playing: boolean; onPlay: () => void }) {
+  const completed = job.status === "complete"
+  return <div className="motion-rise-in flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-white/[.035]" style={{ animationDelay: `${index * 60}ms` }}><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-300"><AudioLines className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm text-white/85">{job.text}</p><p className="mt-0.5 text-xs text-white/35">{formatDate(job.created_at)}</p></div><span className={`hidden rounded-full px-2 py-1 text-[11px] sm:inline ${completed ? "bg-emerald-500/10 text-emerald-300" : job.status === "failed" ? "bg-red-500/10 text-red-300" : "bg-amber-500/10 text-amber-300"}`}>{job.status}</span>{job.audio_url && <button onClick={onPlay} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-violet-300 transition hover:bg-violet-500 hover:text-white" aria-label={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="ml-0.5 h-3.5 w-3.5" />}</button>}</div>
+}
+
+function ActionLink({ href, icon: Icon, label, muted }: { href: string; icon: typeof Zap; label: string; muted?: boolean }) { return <Link href={href} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[.025] p-3 text-sm text-white/70 transition hover:border-violet-400/20 hover:bg-violet-500/[.07] hover:text-white"><Icon className={`h-4 w-4 ${muted ? "text-white/35" : "text-violet-300"}`} /><span className="flex-1">{label}</span><ArrowRight className="h-3.5 w-3.5 text-white/30" /></Link> }
+function LoadingRows() { return <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-white/[.035]" />)}</div> }
+function EmptyActivity() { return <div className="rounded-xl border border-dashed border-white/10 py-12 text-center"><History className="mx-auto h-6 w-6 text-white/25" /><p className="mt-3 text-sm text-white/45">Your first voice will appear here.</p><Link href="/generate" className="mt-4 inline-flex text-sm font-medium text-violet-300 hover:text-violet-200">Start generating <ArrowRight className="ml-1 h-4 w-4" /></Link></div> }

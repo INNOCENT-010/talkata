@@ -1,16 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/authStore"
 import {
   LayoutDashboard, Mic2, History, CreditCard,
-  Terminal, ChevronDown, LogOut, ShieldCheck, Menu, X,
+  Terminal, ChevronDown, LogOut, ShieldCheck, Menu, X, Wand2,
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
 const GENERATE_CHILDREN = [
   { href: "/generate",      label: "Text to Speech", icon: Mic2  },
+  { href: "/voice-cloning", label: "Voice Cloning",  icon: Wand2, comingSoon: true },
 ]
 
 const TOP_LINKS = [
@@ -26,10 +27,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { user, logout } = useAuthStore()
   const isGenerateActive  = GENERATE_CHILDREN.some(c => pathname === c.href)
   const [generateOpen, setGenerateOpen] = useState(true)
-
-  useEffect(() => {
-    if (isGenerateActive) setGenerateOpen(true)
-  }, [pathname])
 
   const handleSignOut = () => {
     logout()
@@ -74,7 +71,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
           {generateOpen && (
             <div className="mt-1 ml-4 pl-3 border-l border-white/10 flex flex-col gap-0.5">
-              {GENERATE_CHILDREN.map(({ href, label, icon: Icon }) => {
+              {GENERATE_CHILDREN.map(({ href, label, icon: Icon, comingSoon }) => {
                 const active = pathname === href
                 return (
                   <button
@@ -86,6 +83,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   >
                     <Icon className={`w-3.5 h-3.5 ${active ? "text-violet-400" : ""}`} />
                     {label}
+                    {comingSoon && <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider text-violet-300/70">Soon</span>}
                   </button>
                 )
               })}
@@ -126,7 +124,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function NavLink({ href, label, icon: Icon, pathname, onClick }: {
-  href: string; label: string; icon: any; pathname: string; onClick?: () => void
+  href: string; label: string; icon: LucideIcon; pathname: string; onClick?: () => void
 }) {
   const router = useRouter()
   const active = pathname === href
@@ -145,10 +143,6 @@ function NavLink({ href, label, icon: Icon, pathname, onClick }: {
 
 export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-
-  // Close on route change
-  const pathname = usePathname()
-  useEffect(() => { setMobileOpen(false) }, [pathname])
 
   return (
     <>

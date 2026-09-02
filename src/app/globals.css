@@ -30,3 +30,25 @@ html, body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+@keyframes float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -14px, 0) scale(1.05); }
+}
+
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes spin-reverse { to { transform: rotate(-360deg); } }
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.motion-float { animation: float 7s ease-in-out infinite; }
+.motion-float-delayed { animation: float 9s ease-in-out -3s infinite; }
+.motion-spin-slow { animation: spin-slow 18s linear infinite; }
+.motion-spin-reverse { animation: spin-reverse 13s linear infinite; }
+.motion-rise-in { animation: rise-in .55s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-float, .motion-float-delayed, .motion-spin-slow, .motion-spin-reverse, .motion-rise-in { animation: none; }
+}
