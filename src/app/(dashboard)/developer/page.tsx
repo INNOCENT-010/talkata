@@ -34,7 +34,7 @@ interface UsageStats {
 type Tab = "keys" | "usage" | "docs"
 
 const CODE_EXAMPLES = {
-  curl: `curl -X POST https://api.talkata.ink/developer/v1/audio/speech \\
+  curl: `curl -X POST https://api.talkata.space/developer/v1/audio/speech \\
   -H "Authorization: Bearer sk-tal-your-key-here" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -47,7 +47,7 @@ const CODE_EXAMPLES = {
   python: `import requests
 
 response = requests.post(
-    "https://api.talkata.ink/developer/v1/audio/speech",
+    "https://api.talkata.space/developer/v1/audio/speech",
     headers={"Authorization": "Bearer sk-tal-your-key-here"},
     json={
         "input": "Hello, this is Talkata speaking.",
@@ -64,7 +64,7 @@ print("Credits used:", response.headers.get("X-Credits-Used"))`,
   node: `const fs = require("fs")
 
 const response = await fetch(
-  "https://api.talkata.ink/developer/v1/audio/speech",
+  "https://api.talkata.space/developer/v1/audio/speech",
   {
     method: "POST",
     headers: {

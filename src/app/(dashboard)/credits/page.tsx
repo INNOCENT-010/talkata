@@ -42,7 +42,6 @@ const PLAN_META: Record<string, { chars: string; hours: string }> = {
 export default function CreditsPage() {
   const { user } = useAuthStore()
   const [plans, setPlans] = useState<Plan[]>([])
-  const [lemonLoading, setLemonLoading] = useState<string | null>(null)
   const [cryptoPlanId, setCryptoPlanId] = useState("starter")
   const [cryptoChain, setCryptoChain] = useState<CryptoChain>("bep20")
   const [cryptoInvoice, setCryptoInvoice] = useState<CryptoInvoice | null>(null)
@@ -65,17 +64,6 @@ export default function CreditsPage() {
       setCryptoError(getErrorMessage(error, "Could not create crypto invoice. Please try again."))
     } finally {
       setCryptoLoading(false)
-    }
-  }
-
-  const startLemonCheckout = async (planId: string) => {
-    setLemonLoading(planId)
-    try {
-      const response = await creditsAPI.createLemonCheckout(planId)
-      window.location.assign(response.data.checkout_url)
-    } catch (error: unknown) {
-      setCryptoError(getErrorMessage(error, "Could not start checkout. Please try again."))
-      setLemonLoading(null)
     }
   }
 
@@ -169,13 +157,13 @@ export default function CreditsPage() {
               </div>
 
               <Button
-                onClick={() => startLemonCheckout(plan.id)}
-                isLoading={lemonLoading === plan.id}
-                disabled={lemonLoading !== null}
+                onClick={() => {}}
+                disabled
                 variant={isPopular ? "primary" : "secondary"}
-                className="w-full"
+                className="w-full opacity-40"
+                title="Card payments are awaiting approval"
               >
-                Buy with card
+                Card payments coming soon
               </Button>
             </div>
           )
@@ -185,7 +173,7 @@ export default function CreditsPage() {
       <div className="mb-6 rounded-xl border border-violet-500/30 bg-violet-600/10 p-5">
         <div className="mb-4">
           <p className="text-sm font-semibold text-white">Pay with USDT</p>
-          <p className="mt-1 text-xs text-white/50">Choose BEP-20 or TRC-20. The exact amount is unique to your invoice.</p>
+          <p className="mt-1 text-xs text-white/50">Choose BEP-20 or TRC-20. Send the plan amount, then paste its transaction hash to verify.</p>
         </div>
 
         {!cryptoInvoice || cryptoInvoice.status !== "pending" ? (

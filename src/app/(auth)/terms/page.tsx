@@ -31,7 +31,7 @@ export default function TermsPage() {
         },
         {
           title: "Contact",
-          body: "For questions about these terms contact hello@talkata.ink"
+          body: "For questions about these terms contact hello@talkata.space"
         }
       ].map(({ title, body }) => (
         <div key={title} className="mb-8">

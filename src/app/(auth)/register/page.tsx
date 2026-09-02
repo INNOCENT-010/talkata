@@ -13,6 +13,7 @@ export default function RegisterPage() {
   const { setToken, fetchUser } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [confirmationSent, setConfirmationSent] = useState(false)
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -25,9 +26,13 @@ export default function RegisterPage() {
     setError("")
     try {
       const res = await authAPI.register(form)
-      setToken(res.data.access_token)
-      await fetchUser()
-      router.push("/dashboard")
+      if (res.data.access_token) {
+        setToken(res.data.access_token)
+        await fetchUser()
+        router.push("/dashboard")
+        return
+      }
+      setConfirmationSent(true)
     } catch {
       setError("Registration failed. Email may already be in use.")
     } finally {
@@ -39,12 +44,18 @@ export default function RegisterPage() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white mb-2">Create account</h2>
-        <p className="text-white/50 text-sm">Start with 1,000 free credits — no card needed</p>
+        <p className="text-white/50 text-sm">Early users start with 300,000 credits — no card needed</p>
       </div>
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
           {error}
+        </div>
+      )}
+
+      {confirmationSent && (
+        <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
+          Confirmation email sent. Check your inbox, confirm your account, then sign in.
         </div>
       )}
 
@@ -76,8 +87,8 @@ export default function RegisterPage() {
         minLength={8}
       />
 
-      <Button type="submit" isLoading={isLoading} size="lg" className="mt-2 w-full">
-        Create Account
+      <Button type="submit" isLoading={isLoading} size="lg" className="mt-2 w-full" disabled={confirmationSent}>
+        {confirmationSent ? "Check your email" : "Create Account"}
       </Button>
 
       <p className="text-center text-white/50 text-sm">

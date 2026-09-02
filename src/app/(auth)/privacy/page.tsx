@@ -23,11 +23,11 @@ export default function PrivacyPage() {
         },
         {
           title: "Your rights",
-          body: "You can delete your account and all associated data at any time by contacting us at hello@talkata.ink. We will process deletion requests within 7 days."
+          body: "You can delete your account and all associated data at any time by contacting us at hello@talkata.space. We will process deletion requests within 7 days."
         },
         {
           title: "Contact",
-          body: "For privacy questions contact hello@talkata.ink"
+          body: "For privacy questions contact hello@talkata.space"
         }
       ].map(({ title, body }) => (
         <div key={title} className="mb-8">

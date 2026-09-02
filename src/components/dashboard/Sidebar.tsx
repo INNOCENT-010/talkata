@@ -6,12 +6,11 @@ import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/authStore"
 import {
   LayoutDashboard, Mic2, History, CreditCard,
-  Terminal, ChevronDown, Wand2, LogOut, ShieldCheck, Menu, X,
+  Terminal, ChevronDown, LogOut, ShieldCheck, Menu, X,
 } from "lucide-react"
 
 const GENERATE_CHILDREN = [
   { href: "/generate",      label: "Text to Speech", icon: Mic2  },
-  { href: "/voice-cloning", label: "Voice Cloning",  icon: Wand2 },
 ]
 
 const TOP_LINKS = [
