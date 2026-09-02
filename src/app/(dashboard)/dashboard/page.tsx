@@ -36,7 +36,7 @@ export default function DashboardPage() {
         <div className="absolute bottom-0 right-1/4 h-32 w-32 rounded-full bg-blue-400/10 blur-2xl motion-float-delayed" />
         <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-violet-100"><Sparkles className="h-3.5 w-3.5" /> Creative studio</div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-violet-100"><Sparkles className="h-3.5 w-3.5" /> Voice studio</div>
             <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Good to see you, {firstName}.</h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-white/60">Turn your next idea into a voice that feels ready to publish.</p>
           </div>
@@ -50,8 +50,8 @@ export default function DashboardPage() {
         <Metric label="Recent projects" value={recentJobs.length} icon={AudioLines} tone="fuchsia" />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[1.5fr_.8fr]">
-        <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5 md:p-6">
+      <section className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,.8fr)]">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[.035] p-5 md:p-6">
           <div className="mb-5 flex items-center justify-between"><div><h2 className="font-semibold text-white">Recent generations</h2><p className="mt-1 text-xs text-white/40">Your latest voice work, all in one place.</p></div><Link href="/history" className="inline-flex items-center gap-1 text-sm font-medium text-violet-300 transition hover:text-violet-200">All activity <ArrowRight className="h-3.5 w-3.5" /></Link></div>
           {isLoading ? <LoadingRows /> : recentJobs.length === 0 ? <EmptyActivity /> : <div className="space-y-1">{recentJobs.map((job, index) => <JobRow key={job.id} job={job} index={index} playing={playingId === job.id} onPlay={() => job.audio_url && toggle(job.id, job.audio_url)} />)}</div>}
         </div>
@@ -71,7 +71,7 @@ function Metric({ label, value, icon: Icon, tone }: { label: string; value: stri
 
 function JobRow({ job, index, playing, onPlay }: { job: Job; index: number; playing: boolean; onPlay: () => void }) {
   const completed = job.status === "complete"
-  return <div className="motion-rise-in flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-white/[.035]" style={{ animationDelay: `${index * 60}ms` }}><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-300"><AudioLines className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm text-white/85">{job.text}</p><p className="mt-0.5 text-xs text-white/35">{formatDate(job.created_at)}</p></div><span className={`hidden rounded-full px-2 py-1 text-[11px] sm:inline ${completed ? "bg-emerald-500/10 text-emerald-300" : job.status === "failed" ? "bg-red-500/10 text-red-300" : "bg-amber-500/10 text-amber-300"}`}>{job.status}</span>{job.audio_url && <button onClick={onPlay} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-violet-300 transition hover:bg-violet-500 hover:text-white" aria-label={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="ml-0.5 h-3.5 w-3.5" />}</button>}</div>
+  return <div className="motion-rise-in flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-xl px-2 py-3 transition hover:bg-white/[.035]" style={{ animationDelay: `${index * 60}ms` }}><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-300"><AudioLines className="h-4 w-4" /></span><div className="min-w-0 flex-1 overflow-hidden"><p className="truncate text-sm text-white/85">{job.text}</p><p className="mt-0.5 text-xs text-white/35">{formatDate(job.created_at)}</p></div><span className={`hidden shrink-0 rounded-full px-2 py-1 text-[11px] sm:inline ${completed ? "bg-emerald-500/10 text-emerald-300" : job.status === "failed" ? "bg-red-500/10 text-red-300" : "bg-amber-500/10 text-amber-300"}`}>{job.status}</span>{job.audio_url && <button onClick={onPlay} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-violet-300 transition hover:bg-violet-500 hover:text-white" aria-label={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="ml-0.5 h-3.5 w-3.5" />}</button>}</div>
 }
 
 function ActionLink({ href, icon: Icon, label, muted }: { href: string; icon: typeof Zap; label: string; muted?: boolean }) { return <Link href={href} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[.025] p-3 text-sm text-white/70 transition hover:border-violet-400/20 hover:bg-violet-500/[.07] hover:text-white"><Icon className={`h-4 w-4 ${muted ? "text-white/35" : "text-violet-300"}`} /><span className="flex-1">{label}</span><ArrowRight className="h-3.5 w-3.5 text-white/30" /></Link> }

@@ -7,6 +7,7 @@ import { authAPI } from "@/lib/api"
 import { useAuthStore } from "@/store/authStore"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
+import { CheckCircle2, Copy } from "lucide-react"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [confirmationSent, setConfirmationSent] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -54,8 +56,9 @@ export default function RegisterPage() {
       )}
 
       {confirmationSent && (
-        <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
-          Confirmation email sent. Check your inbox, confirm your account, then sign in.
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" /><div><p className="font-semibold">Check your inbox to activate Talkata.</p><p className="mt-1 leading-5 text-emerald-100/70">We sent a confirmation link to <span className="font-medium text-emerald-100">{form.email}</span>. Open it in this browser, then return here to sign in and claim your 300,000 early-user credits.</p></div></div>
+          <button type="button" onClick={async () => { await navigator.clipboard.writeText(form.email); setCopied(true) }} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-300/20 bg-black/10 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-black/20"><Copy className="h-3.5 w-3.5" />{copied ? "Email address copied" : "Copy email address"}</button>
         </div>
       )}
 
