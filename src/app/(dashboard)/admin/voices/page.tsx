@@ -152,10 +152,22 @@ export default function AdminVoicesPage() {
     }
   }
 
+  const moveVoice = async (index: number, direction: number) => {
+    if (saving || index + direction < 0 || index + direction >= voices.length) return
+    const previous = voices
+    const reordered = [...voices]
+    ;[reordered[index], reordered[index + direction]] = [reordered[index + direction], reordered[index]]
+    setVoices(reordered); setSaving(true)
+    try { await axios.post(`${API}/admin/voices/reorder`, { order: reordered.map(v => v.id) }, { headers }) }
+    catch { setVoices(previous); window.alert("Could not save the voice order. Please try again.") }
+    finally { setSaving(false) }
+  }
+
   const activeCount = voices.filter(v => v.is_active).length
 
-  const VoiceCard = ({ voice, index }: { voice: Voice; index: number }) => (
+  const renderVoiceCard = ({ voice, index }: { voice: Voice; index: number }) => (
     <div
+      key={voice.id}
       draggable
       onDragStart={() => handleDragStart(index)}
       onDragEnter={() => handleDragEnter(index)}
@@ -167,9 +179,9 @@ export default function AdminVoicesPage() {
           : "bg-white/[0.02] border-white/5 opacity-50"
       }`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2 sm:gap-3">
         {/* Drag handle */}
-        <GripVertical className="w-4 h-4 text-white/20 mt-1 shrink-0" />
+        <GripVertical className="hidden sm:block w-4 h-4 text-white/20 mt-1 shrink-0" />
 
         {/* Avatar */}
         <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
@@ -180,25 +192,25 @@ export default function AdminVoicesPage() {
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex flex-wrap items-center gap-2 mb-0.5">
             <p className="text-white font-medium text-sm">{voice.name}</p>
             <PreviewButton voiceId={voice.id} />
           </div>
           <p className="text-white/40 text-xs">{voice.gender} · {voice.accent}</p>
 
           {editingId === voice.id ? (
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <input
                 value={editDesc}
                 onChange={(e) => setEditDesc(e.target.value)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="flex-1 text-xs bg-white/10 border border-white/20 rounded px-2 py-1 text-white focus:outline-none focus:border-violet-500"
+                className="min-w-0 w-full sm:w-auto flex-1 text-xs bg-white/10 border border-white/20 rounded px-2 py-1 text-white focus:outline-none focus:border-violet-500"
                 autoFocus
               />
-              <button onClick={() => saveDescription(voice.id)} className="text-green-400 hover:text-green-300">
+              <button aria-label="Save description" onClick={() => saveDescription(voice.id)} className="text-green-400 hover:text-green-300">
                 <Check className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => setEditingId(null)} className="text-white/30 hover:text-white">
+              <button aria-label="Cancel description edit" onClick={() => setEditingId(null)} className="text-white/30 hover:text-white">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -207,7 +219,7 @@ export default function AdminVoicesPage() {
               <p className="text-white/30 text-xs truncate flex-1">{voice.description}</p>
               <button
                 onClick={() => { setEditingId(voice.id); setEditDesc(voice.description) }}
-                className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-violet-400 transition-all shrink-0"
+                aria-label={`Edit description for ${voice.name}`} className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-white/30 hover:text-violet-400 transition-all shrink-0"
               >
                 <Pencil className="w-3 h-3" />
               </button>
@@ -217,16 +229,22 @@ export default function AdminVoicesPage() {
 
         {/* Toggle */}
         <button
+          aria-label={`${voice.is_active ? "Disable" : "Enable"} ${voice.name}`}
+          aria-pressed={voice.is_active}
           onClick={() => toggleVoice(voice.id, voice.is_active)}
           disabled={toggling === voice.id}
           className={`relative w-11 h-6 rounded-full transition-all duration-300 shrink-0 mt-1 ${
             voice.is_active ? "bg-violet-600" : "bg-white/10"
           } ${toggling === voice.id ? "opacity-50" : ""}`}
         >
-          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${
+          <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full transition-all duration-300 ${
             voice.is_active ? "left-6" : "left-1"
           }`} />
         </button>
+      </div>
+      <div className="mt-3 flex gap-2 sm:hidden">
+        <button type="button" disabled={saving || index === 0} onClick={() => moveVoice(index, -1)} className="flex-1 rounded-lg border border-white/10 px-3 text-xs text-white/60 disabled:opacity-30">Move up</button>
+        <button type="button" disabled={saving || index === voices.length - 1} onClick={() => moveVoice(index, 1)} className="flex-1 rounded-lg border border-white/10 px-3 text-xs text-white/60 disabled:opacity-30">Move down</button>
       </div>
     </div>
   )
@@ -248,7 +266,7 @@ export default function AdminVoicesPage() {
         </div>
 
         <p className="text-white/20 text-xs mb-4 px-1">
-          Drag to reorder · Click play to preview · Toggle to enable/disable · Hover description to edit
+          Drag or use Move up/down to reorder · Play to preview · Toggle to enable/disable · Pencil to edit
         </p>
 
         {isLoading ? (
@@ -259,7 +277,7 @@ export default function AdminVoicesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {voices.map((v, i) => <VoiceCard key={v.id} voice={v} index={i} />)}
+            {voices.map((v, i) => renderVoiceCard({ voice: v, index: i }))}
           </div>
         )}
       </div>

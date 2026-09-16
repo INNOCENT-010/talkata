@@ -66,7 +66,7 @@ export default function AdminUsersPage() {
 
   return (
     <AdminGuard>
-      <div className="max-w-6xl mx-auto">
+      <div className="min-w-0 w-full max-w-6xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Link href="/admin" className="text-white/40 hover:text-white transition-colors">
             <ChevronLeft className="w-5 h-5" />
@@ -108,7 +108,7 @@ export default function AdminUsersPage() {
               <tbody>
                 {filtered.map((user) => (
                   <tr key={user.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4">
+                    <td data-label="User" className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-violet-600/30 rounded-full flex items-center justify-center shrink-0">
                           <span className="text-violet-400 text-xs font-bold">
@@ -121,7 +121,7 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Credits" className="px-6 py-4">
                       {editingCredits === user.id ? (
                         <div className="flex items-center gap-2">
                           <input
@@ -151,17 +151,17 @@ export default function AdminUsersPage() {
                         </button>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Joined" className="px-6 py-4">
                       <span className="text-white/50 text-sm">
                         {new Date(user.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Role" className="px-6 py-4">
                       <span className={`text-xs px-2 py-1 rounded-full ${user.is_admin ? "bg-violet-500/20 text-violet-300" : "bg-white/5 text-white/40"}`}>
                         {user.is_admin ? "Admin" : "User"}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Actions" className="px-6 py-4">
                       <button
                         onClick={() => toggleAdmin(user.id, user.is_admin)}
                         className="flex items-center gap-1.5 text-white/40 hover:text-white text-xs transition-colors"

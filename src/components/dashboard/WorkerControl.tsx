@@ -4,7 +4,12 @@ import { Power, RefreshCw, ExternalLink } from "lucide-react"
 import axios from "axios"
 import api from "@/lib/api"
 
-type Worker = { online: boolean; configured: boolean; worker_url_configured: boolean; busy: boolean; retry_after: number; message: string; notebook_url: string }
+type Worker = { setup_error?: string; online: boolean; configured: boolean; worker_url_configured: boolean; busy: boolean; retry_after: number; message: string; notebook_url: string }
+
+function statusError(cause: unknown) {
+  if (axios.isAxiosError(cause) && cause.response?.status === 404) return "Railway is running an older backend: /admin/worker is missing. Deploy the latest talkata-backend code. Changing the Kaggle token will not fix this 404."
+  return "Cannot check the worker. Check the backend connection and try Refresh status."
+}
 
 export default function WorkerControl() {
   const [worker, setWorker] = useState<Worker | null>(null)
@@ -18,7 +23,10 @@ export default function WorkerControl() {
       try {
         const response = await api.get<Worker>("/admin/worker")
         if (active) { setWorker(response.data); setError("") }
-      } catch { if (active) setError("Cannot check the worker. Confirm the backend is running with the latest update.") }
+      } catch (cause) {
+        if (active) setError(statusError(cause))
+        if (axios.isAxiosError(cause) && cause.response?.status === 404) return
+      }
       if (active) timer = setTimeout(poll, 15000)
     }
     void poll()
@@ -27,7 +35,7 @@ export default function WorkerControl() {
   async function refresh() {
     setBusy(true)
     try { setWorker((await api.get<Worker>("/admin/worker")).data); setError("") }
-    catch { setError("Unable to refresh worker status.") }
+    catch (cause) { setError(statusError(cause)) }
     finally { setBusy(false) }
   }
   async function wake() {
@@ -40,12 +48,12 @@ export default function WorkerControl() {
       setError(axios.isAxiosError(cause) && typeof cause.response?.data?.detail === "string" ? cause.response.data.detail : "The wake-up result is unavailable. Refresh status before retrying.")
     } finally { setBusy(false) }
   }
-  return <section className="rounded-2xl border border-white/10 bg-[#11111a] p-5 space-y-4">
+  return <section className="rounded-2xl border border-white/10 bg-[#11111a] p-4 sm:p-5 space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="font-semibold text-white">Voice worker · Kaggle</h2><p className="mt-1 text-xs text-white/45">Wake your saved notebook using the existing worker address.</p></div>
       <span className={`rounded-full px-3 py-1 text-xs ${error ? "bg-amber-500/10 text-amber-300" : worker?.online ? "bg-emerald-500/10 text-emerald-300" : "bg-white/5 text-white/60"}`}>{error ? "Status unavailable" : !worker ? "Checking…" : worker.online ? "Online" : worker.busy ? "Requesting start…" : "Offline"}</span>
     </div>
-    {worker && !worker.configured && <p className="text-sm text-amber-200">Setup needed: add KAGGLE_API_TOKEN to the Railway backend, then redeploy with the Kaggle dependency.</p>}
+    {worker && !worker.configured && <p className="text-sm text-amber-200">{worker.setup_error || "Add KAGGLE_API_TOKEN to the Railway backend, then redeploy."}</p>}
     {worker && !worker.worker_url_configured && <p className="text-sm text-amber-200">The backend needs ML_WORKER_URL to check the worker.</p>}
     {(worker?.message || notice) && <p role="status" className="text-sm text-white/65">{worker?.message || notice}</p>}
     {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
