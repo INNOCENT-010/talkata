@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import AdminGuard from "@/components/dashboard/AdminGuard"
+import WorkerControl from "@/components/dashboard/WorkerControl"
 import { AlertCircle, ArrowRight, CheckCircle2, CircleDollarSign, Clock3, CreditCard, Mic2, ShieldCheck, Users, Wallet } from "lucide-react"
 import Link from "next/link"
 import axios from "axios"
@@ -32,6 +33,7 @@ export default function AdminPage() {
 
   return <AdminGuard><div className="mx-auto max-w-7xl space-y-5 pb-10">
     <header className="flex flex-col justify-between gap-3 md:flex-row md:items-end"><div><span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[.16em] text-violet-300"><ShieldCheck className="h-3.5 w-3.5" /> Admin workspace</span><h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Platform pulse</h1><p className="mt-1 text-sm text-white/45">Generation health, revenue, and crypto operations at a glance.</p></div><span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live data</span></header>
+    <WorkerControl />
     {isLoading ? <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[0, 1, 2, 3].map(i => <div key={i} className="h-28 animate-pulse rounded-2xl bg-white/[.04]" />)}</div> : <>
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{cards.map(({ label, value, icon: Icon, tone }) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[.035] p-4"><div className="flex items-center justify-between"><span className="text-xs text-white/45">{label}</span><span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tone}`}><Icon className="h-4 w-4" /></span></div><p className="mt-4 text-2xl font-semibold text-white">{value}</p></div>)}</section>
       <section className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
