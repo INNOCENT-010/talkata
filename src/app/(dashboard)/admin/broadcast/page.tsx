@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import AdminGuard from "@/components/dashboard/AdminGuard"
-import { ChevronLeft, Upload, Plus, X, Send, Loader2, CheckCircle, Users, Mail } from "lucide-react"
+import { ChevronLeft, Upload, Plus, X, Send, Loader2, CheckCircle, Users, Mail, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import api from "@/lib/api"
 
@@ -20,6 +20,7 @@ export default function AdminBroadcastPage() {
   const [emailInput, setEmailInput] = useState("")
   const [sending, setSending] = useState(false)
   const [sent, setSent]       = useState(false)
+  const [error, setError]     = useState<string | null>(null)
   const [logs, setLogs]       = useState<BroadcastLog[]>([])
   const [logsLoading, setLogsLoading] = useState(true)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -79,17 +80,27 @@ export default function AdminBroadcastPage() {
   async function sendBroadcast() {
     if (!subject.trim() || !body.trim() || emails.length === 0 || sending) return
     setSending(true)
+    setError(null)
     try {
-      await api.post("/support/admin/broadcast", { subject, body, emails })
+      const res = await api.post("/support/admin/broadcast", { subject, body, emails })
+      if (!res.data.ok) {
+        setError(
+          `Sent ${res.data.sent || 0}/${emails.length}. Errors: ${
+            (res.data.errors || []).join(", ") || "unknown error"
+          }`
+        )
+        return
+      }
       setSent(true)
       setSubject("")
       setBody("")
       setEmails([])
       // refresh logs
-      const res = await api.get("/support/admin/broadcast/logs")
-      setLogs(res.data.logs || [])
+      const logRes = await api.get("/support/admin/broadcast/logs")
+      setLogs(logRes.data.logs || [])
       setTimeout(() => setSent(false), 4000)
-    } catch {
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err.message || "Failed to send broadcast")
     } finally {
       setSending(false)
     }
@@ -108,6 +119,13 @@ export default function AdminBroadcastPage() {
             <p className="text-white/50 mt-0.5">Compose and send emails to your users</p>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
           {/* ── compose ── */}

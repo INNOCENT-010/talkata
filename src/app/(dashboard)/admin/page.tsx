@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import AdminGuard from "@/components/dashboard/AdminGuard"
 import WorkerControl from "@/components/dashboard/WorkerControl"
-import { AlertCircle, ArrowRight, CheckCircle2, CircleDollarSign, Clock3, CreditCard, Mic2, ShieldCheck, Users, Wallet } from "lucide-react"
+import { AlertCircle, ArrowRight, CheckCircle2, CircleDollarSign, Clock3, CreditCard, Mic2, ShieldCheck, Users, Wallet, Send, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import axios from "axios"
 
@@ -48,4 +48,13 @@ export default function AdminPage() {
 function CryptoChart({ data }: { data: CryptoData["daily"] }) { const peak = Math.max(1, ...data.map(day => Math.max(day.created, day.paid))); return <div className="mt-7 flex h-40 items-end gap-2">{data.map(day => <div key={day.date} className="flex h-full flex-1 flex-col justify-end gap-1"><div className="flex h-28 items-end gap-1"><span title={`${day.created} created`} className="w-1/2 rounded-t bg-violet-500/50 transition-all" style={{ height: `${(day.created / peak) * 100}%`, minHeight: day.created ? "5px" : "0" }} /><span title={`${day.paid} paid`} className="w-1/2 rounded-t bg-emerald-400/70 transition-all" style={{ height: `${(day.paid / peak) * 100}%`, minHeight: day.paid ? "5px" : "0" }} /></div><span className="text-center text-[10px] text-white/30">{new Date(`${day.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "narrow" })}</span></div>)}</div> }
 function SmallMetric({ label, value, tone }: { label: string; value: number; tone: "amber" | "emerald" | "rose" | "violet" }) { const colors = { amber: "text-amber-300", emerald: "text-emerald-300", rose: "text-rose-300", violet: "text-violet-300" }; return <div className="rounded-xl bg-white/[.035] p-3"><p className="text-xs text-white/40">{label}</p><p className={`mt-1 text-xl font-semibold ${colors[tone]}`}>{value}</p></div> }
 function Status({ status }: { status: string }) { const styles: Record<string, string> = { paid: "bg-emerald-500/10 text-emerald-300", pending: "bg-amber-500/10 text-amber-300", expired: "bg-white/5 text-white/40" }; return <span className={`rounded-full px-2 py-1 text-[10px] font-medium capitalize ${styles[status] || styles.expired}`}>{status}</span> }
-function QuickLinks() { const links = [{ href: "/admin/users", label: "Manage users", icon: Users }, { href: "/admin/generations", label: "Review generations", icon: Mic2 }, { href: "/admin/voices", label: "Manage voices", icon: CreditCard }]; return <div className="rounded-2xl border border-white/10 bg-[#11111a] p-5"><h2 className="font-semibold text-white">Manage</h2><div className="mt-4 space-y-2">{links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[.025] p-3 text-sm text-white/65 transition hover:bg-white/[.06] hover:text-white"><Icon className="h-4 w-4 text-violet-300" /><span className="flex-1">{label}</span><ArrowRight className="h-3.5 w-3.5 text-white/30" /></Link>)}</div></div> }
+function QuickLinks() {
+  const links = [
+    { href: "/admin/users", label: "Manage users", icon: Users },
+    { href: "/admin/generations", label: "Review generations", icon: Mic2 },
+    { href: "/admin/voices", label: "Manage voices", icon: CreditCard },
+    { href: "/admin/broadcast", label: "Broadcast", icon: Send },
+    { href: "/admin/support", label: "Support inbox", icon: MessageCircle },
+  ]
+  return <div className="rounded-2xl border border-white/10 bg-[#11111a] p-5"><h2 className="font-semibold text-white">Manage</h2><div className="mt-4 space-y-2">{links.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[.025] p-3 text-sm text-white/65 transition hover:bg-white/[.06] hover:text-white"><Icon className="h-4 w-4 text-violet-300" /><span className="flex-1">{label}</span><ArrowRight className="h-3.5 w-3.5 text-white/30" /></Link>)}</div></div>
+}
