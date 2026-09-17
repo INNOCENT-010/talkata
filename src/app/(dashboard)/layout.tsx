@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/authStore"
 import Sidebar from "@/components/dashboard/Sidebar"
+import SupportChatWidget from "@/components/support/SupportChatWidget"
 
 export default function DashboardLayout({
   children,
@@ -43,6 +44,7 @@ export default function DashboardLayout({
       <main className="flex-1 p-6 md:p-8 overflow-y-auto pt-16 lg:pt-8">
         {children}
       </main>
+      <SupportChatWidget />
     </div>
   )
 }
