@@ -196,6 +196,7 @@ export default function SupportChatWidget() {
     <>
       {/* ── floating button ──────────────────────────────────────────── */}
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Support chat"
         className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 shadow-lg shadow-violet-900/40 transition hover:bg-violet-500 hover:scale-105 active:scale-95"
@@ -295,6 +296,7 @@ export default function SupportChatWidget() {
                 <FileText className="h-3.5 w-3.5 shrink-0 text-violet-300" />
                 <span className="flex-1 truncate">{file.name}</span>
                 <button
+                  type="button"
                   onClick={() => setFile(null)}
                   className="text-white/30 hover:text-white"
                 >
@@ -304,6 +306,7 @@ export default function SupportChatWidget() {
             )}
             <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
               <button
+                type="button"
                 onClick={() => fileRef.current?.click()}
                 className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white/40 transition hover:text-violet-300"
                 aria-label="Attach file"
@@ -331,6 +334,7 @@ export default function SupportChatWidget() {
                 className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none leading-6"
               />
               <button
+                type="button"
                 onClick={send}
                 disabled={(!body.trim() && !file) || sending}
                 className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white transition hover:bg-violet-500 disabled:opacity-30"
