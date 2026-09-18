@@ -126,13 +126,11 @@ export default function SupportChatWidget() {
     if (sorted.length) lastMsgId.current = sorted[sorted.length - 1].id
   }
 
-  // ── send follow-up message ─────────────────────────────────────────────
   async function sendFollowUp(text: string, attachment: File | null) {
     const form = new FormData()
-    form.append("message", text)
+    form.append("body", text)   // was "message" — field name mismatch fixed
     if (attachment) form.append("file", attachment)
 
-    // optimistic insert
     const optimistic: Message = {
       id:         `opt-${Date.now()}`,
       sender:     "user",
