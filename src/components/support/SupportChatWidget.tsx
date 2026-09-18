@@ -129,7 +129,7 @@ export default function SupportChatWidget() {
   // ── send follow-up message ─────────────────────────────────────────────
   async function sendFollowUp(text: string, attachment: File | null) {
     const form = new FormData()
-    form.append("body", text || " ")
+    form.append("message", text || " ")
     if (attachment) form.append("file", attachment)
 
     // optimistic insert
@@ -164,7 +164,13 @@ export default function SupportChatWidget() {
     } catch (err: any) {
       setBody(text)
       setFile(pendingFile)
-      setError(err?.response?.data?.detail || "Failed to send. Try again.")
+      const raw = err?.response?.data?.detail
+      const msg = typeof raw === "string"
+        ? raw
+        : Array.isArray(raw)
+          ? raw.map((e: any) => e?.msg ?? JSON.stringify(e)).join(", ")
+          : "Failed to send. Try again."
+      setError(msg)
     } finally {
       setSending(false)
     }
