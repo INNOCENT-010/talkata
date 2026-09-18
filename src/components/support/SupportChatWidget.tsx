@@ -112,7 +112,7 @@ export default function SupportChatWidget() {
   // ── send first message (creates conversation) ──────────────────────────
   async function sendFirst(text: string, attachment: File | null) {
     const form = new FormData()
-    form.append("message", text || " ")
+    form.append("message", text)
     if (attachment) form.append("file", attachment)
     await api.post("/support/conversations", form, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -129,7 +129,7 @@ export default function SupportChatWidget() {
   // ── send follow-up message ─────────────────────────────────────────────
   async function sendFollowUp(text: string, attachment: File | null) {
     const form = new FormData()
-    form.append("message", text || " ")
+    form.append("message", text)
     if (attachment) form.append("file", attachment)
 
     // optimistic insert
