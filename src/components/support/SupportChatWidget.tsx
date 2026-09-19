@@ -35,12 +35,20 @@ export default function SupportChatWidget() {
   const [booting, setBooting]           = useState(false)
   const [unread, setUnread]             = useState(0)
   const [error, setError]               = useState<string | null>(null)
+  const [showTag, setShowTag]           = useState(false)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLTextAreaElement>(null)
   const fileRef   = useRef<HTMLInputElement>(null)
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastMsgId = useRef<string | null>(null)
+
+  // ── live chat tag: show after 2s, hide after 4s ───────────────────────
+  useEffect(() => {
+    const show = setTimeout(() => setShowTag(true), 2000)
+    const hide = setTimeout(() => setShowTag(false), 6000)
+    return () => { clearTimeout(show); clearTimeout(hide) }
+  }, [])
 
   // ── boot: load existing conversation ──────────────────────────────────
   useEffect(() => {
@@ -213,6 +221,12 @@ export default function SupportChatWidget() {
             {unread > 0 && (
               <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-fuchsia-500 text-[10px] font-bold text-white">
                 {unread > 9 ? "9+" : unread}
+              </span>
+            )}
+            {showTag && !unread && (
+              <span className="absolute -top-1 right-14 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-violet-700 shadow-lg animate-in fade-in slide-in-from-right-2 duration-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                Live chat
               </span>
             )}
           </>
