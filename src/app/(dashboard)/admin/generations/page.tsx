@@ -138,8 +138,14 @@ export default function AdminGenerationsPage() {
                     </td>
                     <td data-label="Voice" className="px-6 py-4">
                       <span className="text-white/60 text-sm capitalize">
-                        {job.voice_display_name?.replace(/_/g, " ")}
+                        {job.voice_display_name?.replace(/_/g, " ") || job.voice_name?.replace(/_/g, " ")}
                       </span>
+                      {job.voice_name?.startsWith("clone_") && (
+                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400">clone</span>
+                      )}
+                      {["horror_male","dramatic_male","classic_narrator","enthusiastic_female","detective_female"].includes(job.voice_name) && (
+                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-fuchsia-500/15 text-fuchsia-400">character</span>
+                      )}
                     </td>
                     <td data-label="Status" className="px-6 py-4">
                       <span className={`text-xs px-2 py-1 rounded-full ${statusColors[job.status] || "bg-white/5 text-white/40"}`}>
