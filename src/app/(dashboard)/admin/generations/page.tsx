@@ -42,6 +42,7 @@ export default function AdminGenerationsPage() {
   const [retrying, setRetrying]       = useState<string | null>(null)
   const [retryMsg, setRetryMsg]       = useState<{ id: string; ok: boolean; text: string } | null>(null)
   const [expanded, setExpanded]       = useState<string | null>(null)
+  const [notifyMap, setNotifyMap]     = useState<Record<string, boolean>>({})
 
   const fetchJobs = () => {
     setIsLoading(true)
@@ -73,9 +74,17 @@ export default function AdminGenerationsPage() {
     setRetrying(job.id)
     setRetryMsg(null)
     try {
-      await api.post("/admin/retry-job", { job_id: job.id })
-      setRetryMsg({ id: job.id, ok: true, text: "Job re-queued at no charge." })
-      // optimistically update status
+      await api.post("/generate/admin/retry-job", {
+        job_id: job.id,
+        notify: notifyMap[job.id] ?? false,
+      })
+      setRetryMsg({
+        id: job.id,
+        ok: true,
+        text: notifyMap[job.id]
+          ? "Re-queued at no charge. User will be emailed when done."
+          : "Job re-queued at no charge.",
+      })
       setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "queued" } : j))
     } catch (err: any) {
       setRetryMsg({
@@ -270,15 +279,28 @@ export default function AdminGenerationsPage() {
                             </>
                           )}
                           {job.status === "failed" && (
-                            <button
-                              onClick={() => retryJob(job)}
-                              disabled={retrying === job.id}
-                              title="Retry at no charge"
-                              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors text-[10px] disabled:opacity-40"
-                            >
-                              <RefreshCw className={`w-3 h-3 ${retrying === job.id ? "animate-spin" : ""}`} />
-                              Retry
-                            </button>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => retryJob(job)}
+                                  disabled={retrying === job.id}
+                                  title="Retry at no charge"
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors text-[10px] disabled:opacity-40"
+                                >
+                                  <RefreshCw className={`w-3 h-3 ${retrying === job.id ? "animate-spin" : ""}`} />
+                                  Retry
+                                </button>
+                              </div>
+                              <label className="flex items-center gap-1 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={notifyMap[job.id] ?? false}
+                                  onChange={e => setNotifyMap(prev => ({ ...prev, [job.id]: e.target.checked }))}
+                                  className="w-2.5 h-2.5 accent-violet-500"
+                                />
+                                <span className="text-[9px] text-white/30">Notify user</span>
+                              </label>
+                            </div>
                           )}
                         </div>
                         {retryMsg?.id === job.id && (
