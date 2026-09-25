@@ -1,7 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState, useRef } from "react"
-import { useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
 import { generateAPI } from "@/lib/api"
 import { formatDate } from "@/lib/utils"
 import { History, Play, Pause, Download, Info, Mic2, Zap } from "lucide-react"
@@ -11,6 +10,7 @@ interface Job {
   id: string
   text: string
   status: string
+  error?: string
   audio_url?: string
   credits_used: number
   duration_seconds?: number
@@ -131,14 +131,11 @@ function AudioPlayer({ job, isPlaying, onToggle }: {
 }
 
 export default function HistoryPage() {
-  const searchParams = useSearchParams()
-  const isProcessing = searchParams.get("processing") === "true"
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const { playingId, toggle } = useAudioStore()
-  const pollRef = useRef<NodeJS.Timeout | null>(null)
   const [now] = useState(() => Date.now())
 
   const fetchJobs = useCallback(async () => {
@@ -148,35 +145,31 @@ export default function HistoryPage() {
   }, [])
 
   useEffect(() => {
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let inFlight = false
     const load = async () => {
-      try { await fetchJobs() }
-      finally { setIsLoading(false) }
+      if (stopped || inFlight) return
+      inFlight = true
+      let keepPolling = true
+      try {
+        const latest = await fetchJobs()
+        keepPolling = latest.some((j: Job) => j.status === "queued" || j.status === "processing")
+      } catch {
+        // A temporary network failure must not stop tracking a paid generation.
+      } finally {
+        inFlight = false
+        if (!stopped) {
+          setIsLoading(false)
+          if (keepPolling) timer = setTimeout(load, 5000)
+        }
+      }
     }
+    const refresh = () => { if (timer) clearTimeout(timer); void load() }
     void load()
-    if (isProcessing) {
-      pollRef.current = setInterval(async () => {
-        const latest = await fetchJobs()
-        const hasActive = latest.some((j: Job) =>
-          j.status === "queued" || j.status === "processing"
-        )
-        if (!hasActive) clearInterval(pollRef.current!)
-      }, 3000)
-    }
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [fetchJobs, isProcessing])
-
-  useEffect(() => {
-    const hasActive = jobs.some(j => j.status === "queued" || j.status === "processing")
-    if (hasActive && !pollRef.current) {
-      pollRef.current = setInterval(async () => {
-        const latest = await fetchJobs()
-        const stillActive = latest.some((j: Job) =>
-          j.status === "queued" || j.status === "processing"
-        )
-        if (!stillActive) { clearInterval(pollRef.current!); pollRef.current = null }
-      }, 3000)
-    }
-  }, [fetchJobs, jobs])
+    window.addEventListener("focus", refresh)
+    return () => { stopped = true; if (timer) clearTimeout(timer); window.removeEventListener("focus", refresh) }
+  }, [fetchJobs])
 
   const isExpiringSoon = (dateStr: string) => {
     const created = new Date(dateStr)
@@ -220,7 +213,7 @@ export default function HistoryPage() {
         : job.status === "failed"  ? "bg-red-500/10 text-red-400"
         : job.status === "cancelled" ? "bg-white/5 text-white/30"
         : "bg-violet-500/10 text-violet-400"
-      }`}>{job.status}</span>
+      }`} title={job.error}>{job.status}</span>
       {(job.status === "queued" || job.status === "processing") && (
         <div className="w-3 h-3 border border-violet-400/50 border-t-violet-400 rounded-full animate-spin" />
       )}

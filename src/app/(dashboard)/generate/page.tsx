@@ -355,9 +355,10 @@ export default function GeneratePage() {
     if (selectedVoice) localStorage.setItem(VOICE_CACHE_KEY, selectedVoice.id)
   }, [selectedVoice])
 
-  const creditCost = Math.max(MIN_CREDITS, Math.round((text.length / CHARS_PER_MINUTE) * CREDITS_PER_MIN))
+  const creditRate = selectedVoice?.is_clone ? 1150 : selectedVoice && CHARACTER_VOICE_IDS.has(selectedVoice.id) ? 1100 : CREDITS_PER_MIN
+  const creditCost = Math.max(MIN_CREDITS, Math.round((text.trim().length / CHARS_PER_MINUTE) * creditRate))
 
-  const activeModelLabel = selectedVoice && CHARACTER_VOICE_IDS.has(selectedVoice.id)
+  const activeModelLabel = selectedVoice?.is_clone ? "Voice clone" : selectedVoice && CHARACTER_VOICE_IDS.has(selectedVoice.id)
     ? "Character"
     : "Standard"
 
@@ -417,7 +418,8 @@ export default function GeneratePage() {
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Enter any text here — no character limit. Paste an entire script, article, or book chapter..."
+                maxLength={100000}
+                placeholder={selectedVoice?.is_clone ? "Enter English text for your cloned voice (up to 100,000 characters)." : "Enter your script (up to 100,000 characters)."}
                 className="bg-transparent text-white text-sm leading-relaxed resize-none outline-none placeholder:text-white/20 min-h-[280px]"
               />
             </div>

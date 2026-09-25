@@ -171,6 +171,7 @@ export default function VoiceCloningPage() {
   const [saveDone, setSaveDone]     = useState(false)
   const [recSeconds, setRecSeconds] = useState(0)
   const [playing, setPlaying]       = useState(false)
+  const streamRef = useRef<MediaStream | null>(null)
   const mediaRef  = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -182,6 +183,7 @@ export default function VoiceCloningPage() {
     setLoadingClones(true)
     api.get("/cloning/")
       .then(r => setClones(r.data.clones || []))
+      .catch(() => setUploadError("Could not load your voices. Please refresh."))
       .finally(() => setLoadingClones(false))
   }, [])
 
@@ -197,12 +199,17 @@ export default function VoiceCloningPage() {
   // Cleanup blob URL on unmount
   useEffect(() => () => {
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (mediaRef.current?.state === "recording") { mediaRef.current.onstop = null; mediaRef.current.stop() }
+    streamRef.current?.getTracks().forEach(track => track.stop())
+    audioRef.current?.pause()
   }, [])
 
   // ── Upload flow ──────────────────────────────────────────────────────────
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
+    if (f.size > 30 * 1024 * 1024) { setUploadError("Maximum file size is 30 MB."); return }
     setUploadFile(f)
     setUploadName(f.name.replace(/\.[^.]+$/, ""))
     setUploadError(null)
@@ -236,18 +243,18 @@ export default function VoiceCloningPage() {
   async function startRec() {
     try {
       const ms = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = ms
       setStream(ms)
-      const mr = new MediaRecorder(ms, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : "audio/webm",
-      })
+      const mimeType = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"]
+        .find(type => MediaRecorder.isTypeSupported(type))
+      const mr = new MediaRecorder(ms, mimeType ? { mimeType } : undefined)
       chunksRef.current = []
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mr.mimeType })
         setRecorded(blob)
         ms.getTracks().forEach(t => t.stop())
+        streamRef.current = null
         setStream(null)
       }
       mr.start(100)
@@ -256,12 +263,15 @@ export default function VoiceCloningPage() {
       setRecSeconds(0)
       timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000)
     } catch {
-      setSaveError("Microphone access was denied. Please allow microphone access and try again.")
+      streamRef.current?.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+      setStream(null)
+      setSaveError("Microphone recording could not start. Please allow microphone access and try again.")
     }
   }
 
   function stopRec() {
-    mediaRef.current?.stop()
+    if (mediaRef.current?.state === "recording") mediaRef.current.stop()
     if (timerRef.current) clearInterval(timerRef.current)
     setRecording(false)
   }
@@ -299,7 +309,9 @@ export default function VoiceCloningPage() {
     if (!recorded || !recordName.trim()) return
     setSaving(true); setSaveError(null)
     try {
-      const file = new File([recorded], "recording.webm", { type: "audio/mpeg" })
+      const mime = recorded.type.split(";")[0] || "audio/webm"
+      const extension = mime === "audio/mp4" ? "m4a" : mime === "audio/ogg" ? "ogg" : "webm"
+      const file = new File([recorded], `recording.${extension}`, { type: mime })
       const form = new FormData()
       form.append("name", recordName.trim())
       form.append("file", file)
@@ -341,7 +353,7 @@ export default function VoiceCloningPage() {
         </div>
         <h1 className="text-2xl font-bold text-white">Clone a voice</h1>
         <p className="mt-1 text-sm text-white/40">
-          Upload a recording or record directly. {MIN_REC_SEC}–{MAX_REC_SEC} seconds of clean speech works best.
+          Upload or record 5 to 120 seconds of clear English speech. A clean 10 to 30 second sample is recommended; cloning uses the first 30 seconds.
         </p>
       </div>
 
@@ -422,7 +434,7 @@ export default function VoiceCloningPage() {
           <input
             ref={fileRef}
             type="file"
-            accept="audio/wav,audio/mp3,audio/mpeg,.wav,.mp3"
+            accept="audio/wav,audio/mp3,audio/mpeg,audio/mp4,audio/webm,audio/ogg,.wav,.mp3,.m4a,.mp4,.webm,.ogg"
             className="hidden"
             onChange={pickFile}
           />
