@@ -5,13 +5,15 @@ import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/authStore"
 import {
   LayoutDashboard, Mic2, History, CreditCard,
-  Terminal, ChevronDown, LogOut, ShieldCheck, Menu, X, Wand2,
+  Terminal, ChevronDown, LogOut, ShieldCheck, Menu, X, Wand2, Music2, FileAudio,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 const GENERATE_CHILDREN = [
   { href: "/generate",      label: "Text to Speech", icon: Mic2  },
   { href: "/voice-cloning", label: "Voice Cloning",  icon: Wand2, comingSoon: true },
+  { href: "/music", label: "Story Music", icon: Music2, comingSoon: true },
+  { href: "/transcription", label: "Transcription", icon: FileAudio, comingSoon: true },
 ]
 
 const TOP_LINKS = [
