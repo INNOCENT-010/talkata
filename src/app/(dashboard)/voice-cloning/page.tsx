@@ -1,18 +1,18 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { useAuthStore } from "@/store/authStore"
 import api from "@/lib/api"
+import { isAxiosError } from "axios"
+import ClonePreview from "@/components/voices/ClonePreview"
 import {
   Mic, Upload, Square, Play, Trash2, Check,
-  Loader2, AlertCircle, Wand2, X, ArrowRight, Pause
+  Loader2, AlertCircle, Wand2, X, Pause
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-const ACCESS_CODE    = "trojan2026"
 const MIN_REC_SEC    = 6
 const MAX_REC_SEC    = 120
-const RECORD_SCRIPT  = `My name is Trojan, and this is my voice. I build things that matter — software, stories, spaces. Every morning I wake up with a new idea and the discipline to see it through. The world moves fast, but clarity is still the most powerful tool I own. Let's make something worth remembering.`
+const RECORD_SCRIPT  = `This is a sample of my natural voice. I am speaking at a comfortable pace, with a clear and relaxed tone. Some days are quiet, and others are full of new ideas. Each story has its own rhythm. I look forward to bringing those stories to life.`
 
 interface Clone {
   id: string
@@ -95,60 +95,12 @@ function IdleWave() {
   )
 }
 
-// ── Passphrase gate ───────────────────────────────────────────────────────────
-function PassGate({ onUnlock }: { onUnlock: () => void }) {
-  const [code, setCode]   = useState("")
-  const [wrong, setWrong] = useState(false)
-
-  function attempt() {
-    if (code === ACCESS_CODE) {
-      onUnlock()
-    } else {
-      setWrong(true)
-      setCode("")
-      setTimeout(() => setWrong(false), 600)
-    }
-  }
-
-  return (
-    <div className="flex min-h-[70vh] items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center">
-        <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-400/20 bg-violet-500/10">
-          <Wand2 className="h-6 w-6 text-violet-300" />
-        </div>
-        <h2 className="mb-2 text-xl font-semibold text-white">Lab access</h2>
-        <p className="mb-6 text-sm text-white/40">Enter your access code to continue.</p>
-        <div className={wrong ? "animate-bounce" : ""}>
-          <input
-            type="password"
-            value={code}
-            onChange={e => { setCode(e.target.value); setWrong(false) }}
-            onKeyDown={e => e.key === "Enter" && attempt()}
-            placeholder="Access code"
-            autoFocus
-            className={`w-full rounded-xl border px-4 py-3 text-center text-white placeholder:text-white/20 focus:outline-none bg-white/5 transition-colors ${
-              wrong ? "border-red-500/60" : "border-white/10 focus:border-violet-500"
-            }`}
-          />
-          {wrong && <p className="mt-2 text-xs text-red-400">Incorrect code.</p>}
-          <button
-            onClick={attempt}
-            className="mt-3 w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
-          >
-            Enter
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function VoiceCloningPage() {
-  const { user } = useAuthStore()
   const router   = useRouter()
 
-  const [unlocked, setUnlocked]           = useState(false)
+  const [previewId, setPreviewId] = useState<string | null>(null)
+  const [uploadUrl, setUploadUrl] = useState<string | null>(null)
   const [tab, setTab]                     = useState<"upload" | "record">("upload")
   const [clones, setClones]               = useState<Clone[]>([])
   const [loadingClones, setLoadingClones] = useState(true)
@@ -160,6 +112,7 @@ export default function VoiceCloningPage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadDone, setUploadDone]   = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const uploadUrlRef = useRef<string | null>(null)
 
   // Record state
   const [stream, setStream]         = useState<MediaStream | null>(null)
@@ -188,16 +141,21 @@ export default function VoiceCloningPage() {
   }, [])
 
   useEffect(() => {
-    if (unlocked) fetchClones()
-  }, [unlocked, fetchClones])
+    queueMicrotask(fetchClones)
+  }, [fetchClones])
+
 
   // Auto-stop at max duration
   useEffect(() => {
-    if (recSeconds >= MAX_REC_SEC && recording) stopRec()
+    if (recSeconds >= MAX_REC_SEC && recording) {
+      const timeout = setTimeout(stopRec, 0)
+      return () => clearTimeout(timeout)
+    }
   }, [recSeconds, recording])
 
   // Cleanup blob URL on unmount
   useEffect(() => () => {
+    if (uploadUrlRef.current) URL.revokeObjectURL(uploadUrlRef.current)
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
     if (timerRef.current) clearInterval(timerRef.current)
     if (mediaRef.current?.state === "recording") { mediaRef.current.onstop = null; mediaRef.current.stop() }
@@ -210,6 +168,9 @@ export default function VoiceCloningPage() {
     const f = e.target.files?.[0]
     if (!f) return
     if (f.size > 30 * 1024 * 1024) { setUploadError("Maximum file size is 30 MB."); return }
+    if (uploadUrlRef.current) URL.revokeObjectURL(uploadUrlRef.current)
+    uploadUrlRef.current = URL.createObjectURL(f)
+    setUploadUrl(uploadUrlRef.current)
     setUploadFile(f)
     setUploadName(f.name.replace(/\.[^.]+$/, ""))
     setUploadError(null)
@@ -224,15 +185,16 @@ export default function VoiceCloningPage() {
       const form = new FormData()
       form.append("name", uploadName.trim())
       form.append("file", uploadFile)
-      await api.post("/cloning/upload", form, {
+      const response = await api.post("/cloning/upload", form, {
         headers: { "Content-Type": "multipart/form-data" },
       })
+      setPreviewId(response.data.clone_id)
       setUploadDone(true)
       setUploadFile(null)
       setUploadName("")
       fetchClones()
-    } catch (err: any) {
-      const raw = err?.response?.data?.detail
+    } catch (err: unknown) {
+      const raw = isAxiosError(err) ? err.response?.data?.detail : null
       setUploadError(typeof raw === "string" ? raw : "Upload failed.")
     } finally {
       setUploading(false)
@@ -315,14 +277,15 @@ export default function VoiceCloningPage() {
       const form = new FormData()
       form.append("name", recordName.trim())
       form.append("file", file)
-      await api.post("/cloning/upload", form, {
+      const response = await api.post("/cloning/upload", form, {
         headers: { "Content-Type": "multipart/form-data" },
       })
-      setSaveDone(true)
+      setPreviewId(response.data.clone_id)
       discard()
+      setSaveDone(true)
       fetchClones()
-    } catch (err: any) {
-      const raw = err?.response?.data?.detail
+    } catch (err: unknown) {
+      const raw = isAxiosError(err) ? err.response?.data?.detail : null
       setSaveError(typeof raw === "string" ? raw : "Save failed.")
     } finally {
       setSaving(false)
@@ -341,7 +304,6 @@ export default function VoiceCloningPage() {
   const tooShort   = recSeconds < MIN_REC_SEC
   const recProgress = Math.min((recSeconds / MAX_REC_SEC) * 100, 100)
 
-  if (!unlocked) return <PassGate onUnlock={() => setUnlocked(true)} />
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
@@ -349,13 +311,15 @@ export default function VoiceCloningPage() {
       {/* ── Header ── */}
       <div className="mb-8">
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs text-violet-300">
-          <Wand2 className="h-3 w-3" /> Lab · Voice Cloning
+          <Wand2 className="h-3 w-3" /> Voice Cloning
         </div>
         <h1 className="text-2xl font-bold text-white">Clone a voice</h1>
         <p className="mt-1 text-sm text-white/40">
           Upload or record 5 to 120 seconds of clear English speech. A clean 10 to 30 second sample is recommended; cloning uses the first 30 seconds.
         </p>
       </div>
+
+      {(uploadDone || saveDone) && <div role="status" className="mb-6 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">Your voice is saved. Open its generated preview below to hear new speech in this voice.</div>}
 
       {/* ── Tabs ── */}
       <div className="mb-6 flex gap-1 rounded-xl border border-white/10 bg-white/[.03] p-1">
@@ -383,7 +347,7 @@ export default function VoiceCloningPage() {
             >
               <Upload className="h-8 w-8 text-white/30" />
               <div className="text-center">
-                <p className="text-sm font-medium text-white/70">Drop a WAV or MP3</p>
+                <p className="text-sm font-medium text-white/70">Choose an audio recording</p>
                 <p className="mt-0.5 text-xs text-white/30">
                   {MIN_REC_SEC}–{MAX_REC_SEC} seconds · max 30 MB
                 </p>
@@ -403,10 +367,14 @@ export default function VoiceCloningPage() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
+              <p className="text-xs text-white/50">Listen to your reference, then name this voice.</p>
+              {uploadUrl && <audio controls preload="metadata" src={uploadUrl} className="w-full" />}
               <input
                 value={uploadName}
                 onChange={e => setUploadName(e.target.value)}
-                placeholder="Name this voice…"
+                maxLength={80}
+                aria-label="Voice name"
+                placeholder="Voice name, e.g. My narration voice"
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-violet-500 focus:outline-none"
               />
               {uploadError && (
@@ -448,7 +416,7 @@ export default function VoiceCloningPage() {
           {/* Script */}
           <div className="rounded-xl border border-white/8 bg-white/[.02] p-4">
             <p className="mb-2 text-xs font-medium text-white/30">Read this aloud naturally</p>
-            <p className="text-sm leading-7 text-white/65 italic">"{RECORD_SCRIPT}"</p>
+            <p className="text-sm leading-7 text-white/65 italic">&ldquo;{RECORD_SCRIPT}&rdquo;</p>
           </div>
 
           {!recorded ? (
@@ -533,7 +501,9 @@ export default function VoiceCloningPage() {
               <input
                 value={recordName}
                 onChange={e => setRecordName(e.target.value)}
-                placeholder="Name this voice…"
+                maxLength={80}
+                aria-label="Voice name"
+                placeholder="Voice name, e.g. My narration voice"
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-violet-500 focus:outline-none"
               />
 
@@ -566,7 +536,7 @@ export default function VoiceCloningPage() {
       {/* ── Clones list ── */}
       <div className="mt-8">
         <h2 className="mb-3 text-sm font-medium text-white/40">
-          Your clones {clones.length > 0 && <span className="text-white/20">({clones.length}/10)</span>}
+          Your saved voices {clones.length > 0 && <span className="text-white/20">({clones.length}/10)</span>}
         </h2>
         {loadingClones ? (
           <div className="flex justify-center py-8">
@@ -578,43 +548,54 @@ export default function VoiceCloningPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {clones.map(clone => (
-              <div
-                key={clone.id}
-                className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[.03] px-4 py-3"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-xs font-semibold text-violet-300">
-                  {clone.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium text-white">{clone.name}</p>
-                  <p className="text-xs text-white/30">
-                    {clone.duration_seconds ? `${clone.duration_seconds}s · ` : ""}
-                    {new Date(clone.created_at).toLocaleDateString("en-US", {
-                      month: "short", day: "numeric",
-                    })}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => router.push(`/generate?voice=clone_${clone.id}`)}
-                    className="flex items-center gap-1.5 rounded-lg bg-violet-600/20 px-3 py-1.5 text-xs font-medium text-violet-300 transition hover:bg-violet-600/40"
-                  >
-                    Use <ArrowRight className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={() => deleteClone(clone.id)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-white/20 transition hover:text-red-400"
-                    title="Delete clone"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+            {clones.map(clone => <SavedVoice key={clone.id} clone={clone} open={previewId === clone.id}
+              onPreview={() => setPreviewId(previewId === clone.id ? null : clone.id)}
+              onRename={name => setClones(list => list.map(item => item.id === clone.id ? { ...item, name } : item))}
+              onDelete={() => deleteClone(clone.id)}
+              onUse={() => router.push(`/generate?voice=clone_${clone.id}`)} />)}
           </div>
         )}
       </div>
     </div>
   )
+}
+
+function SavedVoice({ clone, open, onPreview, onRename, onDelete, onUse }: {
+  clone: Clone; open: boolean; onPreview: () => void; onRename: (name: string) => void;
+  onDelete: () => Promise<void>; onUse: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(clone.name)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  async function rename() {
+    setBusy(true); setError("")
+    try { const response = await api.patch(`/cloning/${clone.id}`, { name: name.trim() }); onRename(response.data.name); setEditing(false) }
+    catch { setError("Couldn’t rename this voice. Please try again.") }
+    finally { setBusy(false) }
+  }
+  async function remove() {
+    if (!window.confirm(`Delete “${clone.name}”?`)) return
+    setBusy(true); setError("")
+    try { await onDelete() } catch { setError("Couldn’t delete this voice. Please try again."); setBusy(false) }
+  }
+  return <article className="rounded-2xl border border-white/10 bg-white/[.03] p-4 sm:p-5">
+    <div className="flex min-w-0 items-start gap-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-sm font-semibold text-violet-300">{clone.name.slice(0, 2).toUpperCase()}</div>
+      <div className="min-w-0 flex-1"><h3 className="break-words text-sm font-semibold text-white">{clone.name}</h3><p className="mt-1 text-xs text-white/40">{clone.duration_seconds ? `${clone.duration_seconds}s reference · ` : ""}{new Date(clone.created_at).toLocaleDateString()}</p></div>
+    </div>
+    {editing && <form onSubmit={event => { event.preventDefault(); rename() }} className="mt-3 flex flex-wrap gap-2">
+      <input autoFocus aria-label="New voice name" maxLength={80} value={name} onChange={event => setName(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white" />
+      <button disabled={busy || !name.trim()} className="rounded-lg bg-violet-600 px-3 py-2 text-sm text-white disabled:opacity-40">Save name</button>
+      <button type="button" onClick={() => setEditing(false)} className="px-2 text-sm text-white/50">Cancel</button>
+    </form>}
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <button type="button" onClick={onPreview} aria-expanded={open} className="rounded-lg border border-violet-400/20 px-3 py-2 text-xs font-medium text-violet-200">{open ? "Hide preview" : "Hear generated preview"}</button>
+      <button type="button" onClick={onUse} className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-medium text-white">Use voice</button>
+      <button type="button" disabled={busy} onClick={() => { setName(clone.name); setEditing(true) }} className="px-2 py-2 text-xs text-white/60">Rename</button>
+      <button type="button" disabled={busy} onClick={remove} aria-label={`Delete ${clone.name}`} className="ml-auto rounded-lg p-2 text-white/40 hover:text-red-300"><Trash2 className="h-4 w-4" /></button>
+    </div>
+    {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
+    {open && <ClonePreview key={clone.id} cloneId={clone.id} name={clone.name} />}
+  </article>
 }

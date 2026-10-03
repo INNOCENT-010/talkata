@@ -10,7 +10,7 @@ import { Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { setToken, fetchUser, token } = useAuthStore()
+  const { setToken, fetchUser, token, initialize, checkTokenExpiry } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -28,8 +28,10 @@ export default function LoginPage() {
 
   // If already logged in skip straight to dashboard
   useEffect(() => {
-    if (token) router.replace("/dashboard")
-  }, [])
+    initialize()
+    router.prefetch("/dashboard")
+    if (checkTokenExpiry()) router.replace("/dashboard")
+  }, [token, initialize, checkTokenExpiry, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +42,7 @@ export default function LoginPage() {
       setToken(res.data.access_token)
       // Prefetch user in background — don't block navigation
       fetchUser().catch(() => {})
-      router.push("/dashboard")
+      router.replace("/dashboard")
     } catch {
       setError("Invalid email or password")
       setIsLoading(false)

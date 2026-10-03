@@ -11,7 +11,7 @@ import type { LucideIcon } from "lucide-react"
 
 const GENERATE_CHILDREN = [
   { href: "/generate",      label: "Text to Speech", icon: Mic2  },
-  { href: "/voice-cloning", label: "Voice Cloning",  icon: Wand2, comingSoon: true },
+  { href: "/voice-cloning", label: "Voice Cloning",  icon: Wand2 },
   { href: "/music", label: "Story Music", icon: Music2, comingSoon: true },
   { href: "/transcription", label: "Transcription", icon: FileAudio, comingSoon: true },
 ]

@@ -1,0 +1,40 @@
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const ts = require('typescript');
+const code = ts.transpileModule(fs.readFileSync('src/store/authStore.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+const storage = () => { const data = new Map(); return { getItem: k => data.get(k) ?? null, setItem: (k,v) => data.set(k,v), removeItem: k => data.delete(k) }; };
+const token = (sub, exp = Date.now()/1000 + 600) => 'x.' + Buffer.from(JSON.stringify({sub,exp})).toString('base64url') + '.x';
+const user = {id:'a', email:'a@example.com', full_name:'A', credits:50000};
+function setup(me) {
+  const localStorage=storage(), sessionStorage=storage(), redirects=[];
+  const context={exports:{}, require:n=>n==='@/lib/api'?{authAPI:{me}}:require(n), localStorage, sessionStorage, window:{location:{pathname:'/dashboard',assign:p=>redirects.push(p)}}, atob, Date, JSON, Number, Promise, Error};
+  vm.runInNewContext(code,context);
+  return {store:context.exports.useAuthStore, localStorage, sessionStorage, redirects};
+}
+(async()=>{
+  let resolve, calls=0;
+  const ctx=setup(()=>{ calls++; return new Promise(r=>resolve=r) });
+  ctx.store.getState().setToken(token('a'));
+  const first=ctx.store.getState().fetchUser(), second=ctx.store.getState().fetchUser();
+  assert.equal(first,second); assert.equal(calls,1);
+  resolve({data:user}); await first;
+  await ctx.store.getState().fetchUser(false); assert.equal(calls,1);
+  const restored=setup(()=>Promise.resolve({data:user}));
+  restored.localStorage.setItem('token',token('a'));
+  restored.sessionStorage.setItem('talkata_profile',JSON.stringify(user));
+  restored.store.getState().initialize(); assert.equal(restored.store.getState().user.id,'a');
+  restored.localStorage.setItem('token',token('b')); restored.store.getState().initialize(); assert.equal(restored.store.getState().user,null);
+  const offline=setup(()=>Promise.reject(new Error('offline')));
+  offline.store.getState().setToken(token('a')); offline.store.getState().setUser(user);
+  await assert.rejects(offline.store.getState().fetchUser()); assert.equal(offline.store.getState().user.id,'a'); assert.equal(offline.redirects.length,0);
+  const invalid=setup(()=>Promise.reject({isAxiosError:true,response:{status:401}}));
+  invalid.store.getState().setToken(token('a'));
+  await assert.rejects(invalid.store.getState().fetchUser()); assert.equal(invalid.store.getState().token,null);
+  let late;
+  const race=setup(()=>new Promise(r=>late=r)); race.store.getState().setToken(token('a'));
+  const request=race.store.getState().fetchUser(); race.store.getState().setToken(token('b')); late({data:user}); await request;
+  assert.equal(race.store.getState().user,null);
+  restored.localStorage.setItem('token',token('a',1)); restored.store.getState().initialize(); assert.equal(restored.store.getState().token,null);
+  console.log('PASS: request deduplication, freshness, cached restoration, account isolation, transient errors, invalid sessions, stale responses, expiry');
+})().catch(e=>{console.error(e);process.exitCode=1});

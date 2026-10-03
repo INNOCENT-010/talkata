@@ -22,9 +22,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestToken = error.config?.headers?.Authorization
+    const currentToken = localStorage.getItem("token")
+    const isLoginRequest = error.config?.url?.startsWith("/auth/") && error.config?.url !== "/auth/me"
+    if (error.response?.status === 401 && !isLoginRequest && currentToken && requestToken === `Bearer ${currentToken}`) {
       localStorage.removeItem("token")
-      window.location.href = "/login"
+      sessionStorage.removeItem("talkata_profile")
+      // Reset in-memory account data when an authenticated session ends.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      if (window.location.pathname !== "/login") window.location.assign("/login")
     }
     return Promise.reject(error)
   }
@@ -39,7 +45,7 @@ export const authAPI = {
   exchangeGoogleToken: (accessToken: string) => api.post("/auth/google/exchange", { access_token: accessToken }),
   forgotPassword: (email: string) => api.post("/auth/forgot-password", { email }),
   resetPassword: (token: string, password: string) => api.post("/auth/reset-password", { token, password }),
-  me: () => api.get("/auth/me")
+  me: () => api.get("/auth/me", { timeout: 15000 })
 }
 
 export const voicesAPI = {

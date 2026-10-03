@@ -46,7 +46,7 @@ export default function RegisterPage() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white mb-2">Create account</h2>
-        <p className="text-white/50 text-sm">Early users start with 300,000 credits — no card needed</p>
+        <p className="text-white/50 text-sm">Early users start with 50,000 credits — no card needed</p>
       </div>
 
       {error && (
@@ -57,7 +57,7 @@ export default function RegisterPage() {
 
       {confirmationSent && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-          <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" /><div><p className="font-semibold">Check your inbox to activate Talkata.</p><p className="mt-1 leading-5 text-emerald-100/70">We sent a confirmation link to <span className="font-medium text-emerald-100">{form.email}</span>. Open it in this browser, then return here to sign in and claim your 300,000 early-user credits.</p></div></div>
+          <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" /><div><p className="font-semibold">Check your inbox to activate Talkata.</p><p className="mt-1 leading-5 text-emerald-100/70">We sent a confirmation link to <span className="font-medium text-emerald-100">{form.email}</span>. Open it in this browser, then return here to sign in and claim your 50,000 early-user credits.</p></div></div>
           <button type="button" onClick={async () => { await navigator.clipboard.writeText(form.email); setCopied(true) }} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-300/20 bg-black/10 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-black/20"><Copy className="h-3.5 w-3.5" />{copied ? "Email address copied" : "Copy email address"}</button>
         </div>
       )}

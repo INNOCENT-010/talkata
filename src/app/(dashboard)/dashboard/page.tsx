@@ -57,7 +57,7 @@ export default function DashboardPage() {
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#11111a] p-5 md:p-6">
           <span className="text-xs font-medium uppercase tracking-[.16em] text-violet-300/75">Your workspace</span><h2 className="mt-2 text-xl font-semibold text-white">Keep the momentum.</h2><p className="mt-2 text-sm leading-6 text-white/45">Explore your history, add credit when you need it, or start with a fresh script.</p>
-          <div className="mt-6 space-y-2"><ActionLink href="/generate" icon={Mic2} label="Generate speech" /><ActionLink href="/credits" icon={Zap} label="Add credits" /><ActionLink href="/voice-cloning" icon={Sparkles} label="Voice cloning — soon" muted /></div>
+          <div className="mt-6 space-y-2"><ActionLink href="/generate" icon={Mic2} label="Generate speech" /><ActionLink href="/credits" icon={Zap} label="Add credits" /><ActionLink href="/voice-cloning" icon={Sparkles} label="Voice cloning" /></div>
         </div>
       </section>
     </div>
